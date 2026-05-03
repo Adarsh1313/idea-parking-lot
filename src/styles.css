@@ -120,7 +120,8 @@ button {
 }
 
 .hud-stats span,
-.bottom-toolbar button {
+.bottom-toolbar button,
+.sync-status {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -133,6 +134,14 @@ button {
   box-shadow: 0 16px 40px rgb(0 0 0 / 18%);
   backdrop-filter: blur(16px);
   white-space: nowrap;
+}
+
+.sync-status {
+  max-width: min(360px, calc(100vw - 36px));
+  overflow: hidden;
+  color: #dce8d1;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
 }
 
 .bottom-toolbar {
@@ -455,5 +464,7 @@ div:hover > .slot-tooltip {
 
   .bottom-toolbar {
     right: auto;
+    max-width: calc(100vw - 84px);
+    overflow-x: auto;
   }
 }

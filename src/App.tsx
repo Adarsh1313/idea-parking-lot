@@ -1,11 +1,18 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { Download, Import, ParkingCircle, Route, X } from "lucide-react";
+import { Cloud, CloudOff, Download, Import, ParkingCircle, Route, X } from "lucide-react";
 import type { IdeaDraftInput } from "./types";
 import { useIdeaStore } from "./store/ideaStore";
 import { ParkingLotScene } from "./scene/ParkingLotScene";
 import { IdeaModal } from "./ui/IdeaModal";
 import { IdeaInspector } from "./ui/IdeaInspector";
 import { PARKING_SLOTS } from "./scene/layout";
+import {
+  clearStoredGitHubToken,
+  hasGitHubSyncToken,
+  pullIdeasFromGitHub,
+  pushIdeasToGitHub,
+  storeGitHubToken
+} from "./data/githubSync";
 
 const GITHUB_PAGES_URL = "https://adarsh1313.github.io/idea-parking-lot/";
 
@@ -36,6 +43,10 @@ function isLocalDevelopmentHost() {
 export function App() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
+  const [githubSyncEnabled, setGithubSyncEnabled] = useState(hasGitHubSyncToken);
+  const [syncStatus, setSyncStatus] = useState(githubSyncEnabled ? "GitHub sync ready" : "Local only");
+  const [remoteLoaded, setRemoteLoaded] = useState(!githubSyncEnabled);
+  const lastSyncedPayloadRef = useRef<string | null>(null);
   const {
     ideas,
     pendingIdea,
@@ -56,6 +67,72 @@ export function App() {
   useEffect(() => {
     void loadIdeas();
   }, [loadIdeas]);
+
+  useEffect(() => {
+    if (!loaded || !githubSyncEnabled) {
+      return;
+    }
+
+    let cancelled = false;
+    setSyncStatus("Loading GitHub database...");
+
+    void pullIdeasFromGitHub()
+      .then(async (remotePayload) => {
+        if (cancelled) {
+          return;
+        }
+
+        if (remotePayload) {
+          await importIdeas(JSON.stringify(remotePayload));
+          lastSyncedPayloadRef.current = JSON.stringify(remotePayload);
+          setSyncStatus(`Synced ${remotePayload.ideas.length} ideas from GitHub`);
+        } else {
+          setSyncStatus("Creating GitHub database...");
+        }
+
+        setRemoteLoaded(true);
+      })
+      .catch((caughtError) => {
+        if (cancelled) {
+          return;
+        }
+
+        setRemoteLoaded(true);
+        setGithubSyncEnabled(false);
+        setSyncStatus(caughtError instanceof Error ? caughtError.message : "Could not load GitHub database.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [githubSyncEnabled, importIdeas, loaded]);
+
+  useEffect(() => {
+    if (!loaded || !githubSyncEnabled || !remoteLoaded) {
+      return;
+    }
+
+    const payload = exportIdeas();
+    const serializedPayload = JSON.stringify(payload);
+
+    if (serializedPayload === lastSyncedPayloadRef.current) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSyncStatus("Saving to GitHub...");
+      void pushIdeasToGitHub(payload)
+        .then(() => {
+          lastSyncedPayloadRef.current = serializedPayload;
+          setSyncStatus("Saved to GitHub");
+        })
+        .catch((caughtError) => {
+          setSyncStatus(caughtError instanceof Error ? caughtError.message : "Could not save to GitHub.");
+        });
+    }, 900);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [exportIdeas, githubSyncEnabled, ideas, loaded, remoteLoaded]);
 
   useEffect(() => {
     if (!loaded) {
@@ -124,6 +201,29 @@ export function App() {
     }
   }
 
+  async function handleGitHubSyncToggle() {
+    if (githubSyncEnabled) {
+      clearStoredGitHubToken();
+      setGithubSyncEnabled(false);
+      setRemoteLoaded(true);
+      setSyncStatus("Local only");
+      return;
+    }
+
+    const token = window.prompt(
+      "Paste a GitHub fine-grained token with Contents: Read and write access for Adarsh1313/idea-parking-lot."
+    );
+
+    if (!token?.trim()) {
+      return;
+    }
+
+    storeGitHubToken(token);
+    setRemoteLoaded(false);
+    setGithubSyncEnabled(true);
+    setSyncStatus("Connecting to GitHub...");
+  }
+
   return (
     <main className="app-shell">
       <Suspense fallback={<div className="scene-loader">Preparing the lot...</div>}>
@@ -157,6 +257,11 @@ export function App() {
           accept="application/json"
           onChange={(event) => void handleImport(event.target.files?.[0])}
         />
+        <button type="button" onClick={() => void handleGitHubSyncToggle()} disabled={!loaded}>
+          {githubSyncEnabled ? <CloudOff size={18} /> : <Cloud size={18} />}
+          {githubSyncEnabled ? "Disconnect GitHub" : "Connect GitHub"}
+        </button>
+        <span className="sync-status">{syncStatus}</span>
       </section>
 
       <section className="visually-hidden" aria-label="Accessible parking spaces">
