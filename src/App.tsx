@@ -7,6 +7,32 @@ import { IdeaModal } from "./ui/IdeaModal";
 import { IdeaInspector } from "./ui/IdeaInspector";
 import { PARKING_SLOTS } from "./scene/layout";
 
+const GITHUB_PAGES_URL = "https://adarsh1313.github.io/idea-parking-lot/";
+
+function encodeMigrationPayload(raw: string) {
+  const bytes = new TextEncoder().encode(raw);
+  let binary = "";
+
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+}
+
+function decodeMigrationPayload(encoded: string) {
+  const base64 = encoded.replaceAll("-", "+").replaceAll("_", "/");
+  const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+  const binary = atob(padded);
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+
+  return new TextDecoder().decode(bytes);
+}
+
+function isLocalDevelopmentHost() {
+  return ["localhost", "127.0.0.1"].includes(window.location.hostname);
+}
+
 export function App() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
@@ -30,6 +56,27 @@ export function App() {
   useEffect(() => {
     void loadIdeas();
   }, [loadIdeas]);
+
+  useEffect(() => {
+    if (!loaded) {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const migrationPayload = params.get("importIdeas");
+
+    if (migrationPayload) {
+      void importIdeas(decodeMigrationPayload(migrationPayload)).then(() => {
+        window.history.replaceState({}, "", window.location.pathname);
+      });
+      return;
+    }
+
+    if (params.get("migrate") === "github" && isLocalDevelopmentHost()) {
+      const payload = encodeMigrationPayload(JSON.stringify(exportIdeas()));
+      window.location.assign(`${GITHUB_PAGES_URL}?importIdeas=${payload}`);
+    }
+  }, [exportIdeas, importIdeas, loaded]);
 
   const selectedIdea = useMemo(
     () => ideas.find((idea) => idea.id === selectedIdeaId) ?? null,
