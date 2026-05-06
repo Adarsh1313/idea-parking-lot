@@ -262,6 +262,16 @@ button {
   font-weight: 600;
 }
 
+.security-copy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  color: #c9d0c6;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
 .form-error {
   margin: 12px 0 0;
   color: #ffaaa0;
@@ -382,6 +392,7 @@ button {
 }
 
 .slot-tooltip,
+.slot-number,
 .pending-bubble,
 .selected-bubble,
 .road-label {
@@ -396,6 +407,17 @@ button {
   box-shadow: 0 8px 20px rgb(0 0 0 / 14%);
   backdrop-filter: blur(10px);
   pointer-events: none;
+}
+
+.slot-number {
+  background: rgb(10 14 15 / 42%);
+  color: #f3e8c5;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+}
+
+.reserved-slot {
+  color: #fff7e4;
 }
 
 .road-label {
@@ -424,9 +446,17 @@ div:hover > .slot-tooltip {
 }
 
 .selected-bubble {
+  display: grid;
+  gap: 2px;
   max-width: 210px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.selected-bubble span {
+  color: #f5cb65;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
 }
 
 .visually-hidden {

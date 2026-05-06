@@ -1,5 +1,7 @@
 export type SlotLayout = {
   index: number;
+  label: string;
+  kind: "standard" | "accessible" | "reserved" | "loading";
   x: number;
   z: number;
   rotation: number;
@@ -11,13 +13,33 @@ export const LOT_WIDTH = 36;
 export const LOT_DEPTH = 27;
 
 export const PARKING_SLOTS: SlotLayout[] = ROW_Z.flatMap((z, row) =>
-  COL_X.map((x, col) => ({
-    index: row * COL_X.length + col,
-    x,
-    z,
-    rotation: z < 0 ? Math.PI : 0
-  }))
+  COL_X.map((x, col) => {
+    const index = row * COL_X.length + col;
+    const reservedSlots: Record<number, SlotLayout["kind"]> = {
+      0: "accessible",
+      1: "accessible",
+      10: "reserved",
+      11: "loading",
+      12: "reserved",
+      13: "loading",
+      22: "accessible",
+      23: "accessible"
+    };
+
+    return {
+      index,
+      label: `P-${String(index + 1).padStart(2, "0")}`,
+      kind: reservedSlots[index] ?? "standard",
+      x,
+      z,
+      rotation: z < 0 ? Math.PI : 0
+    };
+  })
 );
+
+export function isParkableSlot(slotIndex: number) {
+  return PARKING_SLOTS.find((slot) => slot.index === slotIndex)?.kind === "standard";
+}
 
 export const ENTRANCE_POSITION = [-10.8, 0.34, 0] as const;
 export const BARRIER_POSITION = [-8.75, 0.22, 0] as const;

@@ -11,12 +11,14 @@ export function parseLinks(linksText = "") {
 
 export function normalizeIdeaInput(input: IdeaDraftInput) {
   const title = input.title.trim();
+  const ideaId = input.ideaId?.trim().toUpperCase();
 
   if (!title) {
     throw new Error("Title is required.");
   }
 
   return {
+    ideaId: ideaId || undefined,
     title,
     description: input.description?.trim() || undefined,
     links: parseLinks(input.linksText)
@@ -39,16 +41,17 @@ export function parseImportPayload(raw: string): IdeaParkingLotExport {
 
   return {
     schemaVersion: EXPORT_SCHEMA_VERSION,
-    ideas: parsed.ideas.map((idea) => {
+    ideas: parsed.ideas.map((idea, index) => {
       if (!idea.id || !idea.title || typeof idea.slotIndex !== "number") {
         throw new Error("One or more imported ideas are missing required fields.");
       }
 
       return {
         ...idea,
+        ideaId: idea.ideaId || `IDEA-${String(index + 1).padStart(3, "0")}`,
         description: idea.description || undefined,
         links: Array.isArray(idea.links) ? idea.links : [],
-        status: idea.status === "active" ? "active" : "parked"
+        status: idea.status === "active" ? "active" : idea.status === "archived" ? "archived" : "parked"
       };
     })
   };

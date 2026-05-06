@@ -9,6 +9,7 @@ describe("idea validation", () => {
 
   it("keeps description and links optional", () => {
     expect(normalizeIdeaInput({ title: "Tiny CRM" })).toEqual({
+      ideaId: undefined,
       title: "Tiny CRM",
       description: undefined,
       links: []
@@ -26,6 +27,7 @@ describe("idea validation", () => {
   it("round-trips versioned exports", () => {
     const idea: Idea = {
       id: "idea-1",
+      ideaId: "IDEA-001",
       slotIndex: 4,
       title: "Looping tasks",
       links: ["https://example.com"],

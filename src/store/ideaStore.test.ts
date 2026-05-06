@@ -30,14 +30,14 @@ describe("idea store", () => {
   });
 
   it("saves a pending idea and persists it", async () => {
-    useIdeaStore.getState().startPendingIdea(1);
+    useIdeaStore.getState().startPendingIdea(2);
     const idea = await useIdeaStore.getState().savePendingIdea({
       title: "Pocket analytics",
       description: "Daily tiny product metrics",
       linksText: "https://example.com"
     });
 
-    expect(idea.slotIndex).toBe(1);
+    expect(idea.slotIndex).toBe(2);
     expect(useIdeaStore.getState().ideas).toHaveLength(1);
     expect(await db.ideas.get(idea.id)).toMatchObject({ title: "Pocket analytics" });
   });

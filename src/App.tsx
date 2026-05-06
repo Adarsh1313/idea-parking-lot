@@ -60,6 +60,7 @@ export function App() {
     updateIdea,
     deleteIdea,
     toggleActive,
+    archiveIdea,
     exportIdeas,
     importIdeas
   } = useIdeaStore();
@@ -163,7 +164,10 @@ export function App() {
     () => ideas.find((idea) => idea.id === editingIdeaId) ?? null,
     [editingIdeaId, ideas]
   );
+  const visibleIdeas = ideas.filter((idea) => idea.status !== "archived");
   const activeCount = ideas.filter((idea) => idea.status === "active").length;
+  const archivedCount = ideas.filter((idea) => idea.status === "archived").length;
+  const parkableSlotCount = PARKING_SLOTS.filter((slot) => slot.kind === "standard").length;
 
   async function handleSavePending(input: IdeaDraftInput) {
     await savePendingIdea(input);
@@ -236,8 +240,9 @@ export function App() {
           <h1>Park sparks before they vanish.</h1>
         </div>
         <div className="hud-stats" aria-live="polite">
-          <span><ParkingCircle size={18} /> {ideas.length}/24 parked</span>
+          <span><ParkingCircle size={18} /> {visibleIdeas.length}/{parkableSlotCount} parked</span>
           <span><Route size={18} /> {activeCount} active</span>
+          <span>{archivedCount} archived</span>
         </div>
       </section>
 
@@ -266,16 +271,17 @@ export function App() {
 
       <section className="visually-hidden" aria-label="Accessible parking spaces">
         {PARKING_SLOTS.map((slot) => {
-          const occupied = ideas.some((idea) => idea.slotIndex === slot.index);
+          const occupied = visibleIdeas.some((idea) => idea.slotIndex === slot.index);
+          const unavailable = occupied || slot.kind !== "standard";
 
           return (
             <button
               key={slot.index}
               type="button"
-              disabled={occupied}
+              disabled={unavailable}
               onClick={() => startPendingIdea(slot.index)}
             >
-              Start idea in slot {slot.index + 1}
+              {slot.kind === "standard" ? `Start idea in ${slot.label}` : `${slot.label} is reserved for lot scenery`}
             </button>
           );
         })}
@@ -285,7 +291,7 @@ export function App() {
         <IdeaModal
           title="New idea"
           accentColor={pendingIdea.carColor}
-          submitLabel="Save and park"
+          submitLabel="Approve parking"
           onCancel={cancelPendingIdea}
           onSubmit={handleSavePending}
         />
@@ -297,6 +303,7 @@ export function App() {
           accentColor={editingIdea.carColor}
           submitLabel="Save changes"
           initialValue={{
+            ideaId: editingIdea.ideaId,
             title: editingIdea.title,
             description: editingIdea.description,
             linksText: editingIdea.links.join("\n")
@@ -313,6 +320,7 @@ export function App() {
           onEdit={() => setEditingIdeaId(selectedIdea.id)}
           onDelete={() => void deleteIdea(selectedIdea.id)}
           onToggleActive={() => void toggleActive(selectedIdea.id)}
+          onArchive={() => void archiveIdea(selectedIdea.id)}
         />
       ) : null}
 

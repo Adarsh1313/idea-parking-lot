@@ -1,4 +1,4 @@
-import { Edit3, ExternalLink, Power, Trash2, X } from "lucide-react";
+import { Archive, Edit3, ExternalLink, Power, Trash2, X } from "lucide-react";
 import type { Idea } from "../types";
 
 type IdeaInspectorProps = {
@@ -7,9 +7,10 @@ type IdeaInspectorProps = {
   onEdit: () => void;
   onDelete: () => void;
   onToggleActive: () => void;
+  onArchive: () => void;
 };
 
-export function IdeaInspector({ idea, onClose, onEdit, onDelete, onToggleActive }: IdeaInspectorProps) {
+export function IdeaInspector({ idea, onClose, onEdit, onDelete, onToggleActive, onArchive }: IdeaInspectorProps) {
   return (
     <aside className="idea-inspector" aria-label="Selected idea">
       <div className="inspector-header">
@@ -19,7 +20,7 @@ export function IdeaInspector({ idea, onClose, onEdit, onDelete, onToggleActive 
         </button>
       </div>
 
-      <p className="eyebrow">{idea.status === "active" ? "Active loop" : `Slot ${idea.slotIndex + 1}`}</p>
+      <p className="eyebrow">{idea.ideaId} · {idea.status === "active" ? "Active loop" : idea.status === "archived" ? "Archived" : `Slot ${idea.slotIndex + 1}`}</p>
       <h2>{idea.title}</h2>
       {idea.description ? <FormattedDescription value={idea.description} /> : <p className="idea-description muted">No notes yet.</p>}
 
@@ -36,6 +37,10 @@ export function IdeaInspector({ idea, onClose, onEdit, onDelete, onToggleActive 
         <button type="button" className={idea.status === "active" ? "primary-button active" : "primary-button"} onClick={onToggleActive}>
           <Power size={17} />
           {idea.status === "active" ? "Park it" : "Set active"}
+        </button>
+        <button type="button" className={idea.status === "archived" ? "secondary-button active" : "secondary-button"} onClick={onArchive}>
+          <Archive size={17} />
+          {idea.status === "archived" ? "Restore" : "Archive"}
         </button>
         <button type="button" className="secondary-button" onClick={onEdit}>
           <Edit3 size={17} />

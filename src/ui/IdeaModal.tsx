@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { Link, Save, X } from "lucide-react";
+import { BadgeCheck, Link, ShieldCheck, X } from "lucide-react";
 import type { IdeaDraftInput } from "../types";
 
 type IdeaModalProps = {
@@ -20,6 +20,7 @@ export function IdeaModal({
   onSubmit
 }: IdeaModalProps) {
   const [draft, setDraft] = useState<IdeaDraftInput>({
+    ideaId: initialValue?.ideaId ?? "",
     title: initialValue?.title ?? "",
     description: initialValue?.description ?? "",
     linksText: initialValue?.linksText ?? ""
@@ -61,11 +62,23 @@ export function IdeaModal({
           <div>
             <span className="car-swatch" style={{ background: accentColor }} />
             <h2>{title}</h2>
+            <p className="security-copy"><ShieldCheck size={14} /> Security checks the permit before opening the gate.</p>
           </div>
           <button type="button" className="icon-button" aria-label="Cancel idea" onClick={onCancel}>
             <X size={18} />
           </button>
         </div>
+
+        <label>
+          Idea ID
+          <span className="field-hint"><BadgeCheck size={14} /> Optional. Auto-assigned if blank.</span>
+          <input
+            value={draft.ideaId}
+            maxLength={24}
+            onChange={(event) => setDraft((current) => ({ ...current, ideaId: event.target.value }))}
+            placeholder="IDEA-042"
+          />
+        </label>
 
         <label>
           Title
@@ -112,8 +125,8 @@ export function IdeaModal({
             Cancel
           </button>
           <button type="submit" className="primary-button" disabled={saving}>
-            <Save size={17} />
-            {saving ? "Saving..." : submitLabel}
+            <ShieldCheck size={17} />
+            {saving ? "Checking permit..." : submitLabel}
           </button>
         </div>
       </form>

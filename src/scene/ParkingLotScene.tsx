@@ -210,7 +210,8 @@ function SceneContent() {
   const selectedIdeaId = useIdeaStore((state) => state.selectedIdeaId);
   const startPendingIdea = useIdeaStore((state) => state.startPendingIdea);
   const selectIdea = useIdeaStore((state) => state.selectIdea);
-  const occupiedSlots = useMemo(() => new Set(ideas.map((idea) => idea.slotIndex)), [ideas]);
+  const visibleIdeas = useMemo(() => ideas.filter((idea) => idea.status !== "archived"), [ideas]);
+  const occupiedSlots = useMemo(() => new Set(visibleIdeas.map((idea) => idea.slotIndex)), [visibleIdeas]);
   const selectedIdea = ideas.find((idea) => idea.id === selectedIdeaId) ?? null;
   const selectedActiveOrder = Math.max(0, ideas.findIndex((idea) => idea.id === selectedIdeaId));
 
@@ -232,7 +233,7 @@ function SceneContent() {
       {pendingIdea ? (
         <PendingCar color={pendingIdea.carColor} slotIndex={pendingIdea.slotIndex} />
       ) : null}
-      {ideas.map((idea, activeOrder) => (
+      {visibleIdeas.map((idea, activeOrder) => (
         <IdeaCar
           key={idea.id}
           idea={idea}
@@ -398,7 +399,9 @@ function RoadRibbon({
 }
 
 function ParkingSpace({ slot, occupied, onClick }: { slot: SlotLayout; occupied: boolean; onClick: () => void }) {
-  const color = occupied ? "#6a7377" : "#657074";
+  const isDecorative = slot.kind !== "standard";
+  const color = isDecorative ? "#4e656d" : occupied ? "#6a7377" : "#657074";
+  const stripeColor = slot.kind === "accessible" ? "#7ec8ff" : slot.kind === "loading" ? "#f5cb65" : "#f1f4ef";
 
   return (
     <group position={[slot.x, 0.08, slot.z]} rotation-y={slot.rotation}>
@@ -407,7 +410,7 @@ function ParkingSpace({ slot, occupied, onClick }: { slot: SlotLayout; occupied:
         receiveShadow
         onPointerDown={(event) => {
           event.stopPropagation();
-          if (!occupied) {
+          if (!occupied && !isDecorative) {
             onClick();
           }
         }}
@@ -417,16 +420,31 @@ function ParkingSpace({ slot, occupied, onClick }: { slot: SlotLayout; occupied:
       </mesh>
       <mesh position={[-1.22, 0.07, 0]}>
         <boxGeometry args={[0.06, 0.04, 1.45]} />
-        <meshStandardMaterial color="#f1f4ef" />
+        <meshStandardMaterial color={stripeColor} />
       </mesh>
       <mesh position={[1.22, 0.07, 0]}>
         <boxGeometry args={[0.06, 0.04, 1.45]} />
-        <meshStandardMaterial color="#f1f4ef" />
+        <meshStandardMaterial color={stripeColor} />
       </mesh>
       <mesh position={[0, 0.08, -0.73]}>
         <boxGeometry args={[2.42, 0.04, 0.06]} />
-        <meshStandardMaterial color="#f1f4ef" />
+        <meshStandardMaterial color={stripeColor} />
       </mesh>
+      {slot.kind === "accessible" ? (
+        <mesh position={[0, 0.11, -0.08]} rotation-x={-Math.PI / 2}>
+          <circleGeometry args={[0.24, 20]} />
+          <meshStandardMaterial color="#7ec8ff" emissive="#1f719c" emissiveIntensity={0.15} />
+        </mesh>
+      ) : null}
+      {slot.kind === "reserved" ? (
+        <mesh position={[0, 0.12, -0.1]}>
+          <boxGeometry args={[1.05, 0.04, 0.18]} />
+          <meshStandardMaterial color="#f5cb65" />
+        </mesh>
+      ) : null}
+      <Html position={[0, 0.18, 0.56]} center className={isDecorative ? "slot-number reserved-slot" : "slot-number"}>
+        {slot.kind === "accessible" ? "ADA" : slot.kind === "loading" ? "LOAD" : slot.kind === "reserved" ? "RES" : slot.label}
+      </Html>
     </group>
   );
 }
@@ -568,7 +586,7 @@ function PendingCar({ color, slotIndex }: { color: string; slotIndex: number }) 
         <LowPolyCar color={color} rotation={Math.PI} />
       </Float>
       <Html position={[0, 1.35, 0]} center className="pending-bubble">
-        Waiting for save
+        Security check
         <span>Slot {slotIndex + 1}</span>
       </Html>
     </a.group>
@@ -639,6 +657,7 @@ function IdeaCar({
       <LowPolyCar color={idea.carColor} />
       {selected || hovered ? (
         <Html position={[0, 1.32, 0]} center className={idea.status === "active" ? "selected-bubble active-bubble" : "selected-bubble"}>
+          <span>{idea.ideaId}</span>
           {idea.title}
         </Html>
       ) : null}

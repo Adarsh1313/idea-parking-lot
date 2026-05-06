@@ -1,7 +1,8 @@
-export type IdeaStatus = "parked" | "active";
+export type IdeaStatus = "parked" | "active" | "archived";
 
 export type Idea = {
   id: string;
+  ideaId: string;
   slotIndex: number;
   title: string;
   description?: string;
@@ -19,6 +20,7 @@ export type IdeaParkingLotExport = {
 };
 
 export type IdeaDraftInput = {
+  ideaId?: string;
   title: string;
   description?: string;
   linksText?: string;
