@@ -63,7 +63,11 @@ function getSkyMode() {
   return "day";
 }
 
-export function ParkingLotScene() {
+type ParkingLotSceneProps = {
+  interactive?: boolean;
+};
+
+export function ParkingLotScene({ interactive = true }: ParkingLotSceneProps) {
   const [webglLost, setWebglLost] = useState(false);
   const skyMode = useMemo(getSkyMode, []);
   const skyColor = skyMode === "night" ? "#07111d" : skyMode === "morning" ? "#cfe6ef" : "#b7c9c6";
@@ -93,7 +97,7 @@ export function ParkingLotScene() {
         <hemisphereLight args={[skyMode === "night" ? "#37516b" : "#fff7df", "#6f7b7c", skyMode === "night" ? 0.65 : 1.15]} />
         <directionalLight position={[8, 13, 8]} intensity={skyMode === "night" ? 0.35 : 1.4} castShadow shadow-mapSize={[1024, 1024]} />
         <SkyAmbience mode={skyMode} />
-        <SceneContent />
+        <SceneContent interactive={interactive} />
         <OrbitControls
           enablePan={false}
           minPolarAngle={0.38}
@@ -204,7 +208,7 @@ function CanvasFallback() {
   );
 }
 
-function SceneContent() {
+function SceneContent({ interactive }: { interactive: boolean }) {
   const ideas = useIdeaStore((state) => state.ideas);
   const pendingIdea = useIdeaStore((state) => state.pendingIdea);
   const selectedIdeaId = useIdeaStore((state) => state.selectedIdeaId);
@@ -227,7 +231,11 @@ function SceneContent() {
           key={slot.index}
           slot={slot}
           occupied={occupiedSlots.has(slot.index)}
-          onClick={() => startPendingIdea(slot.index)}
+          onClick={() => {
+            if (interactive) {
+              startPendingIdea(slot.index);
+            }
+          }}
         />
       ))}
       {pendingIdea ? (
@@ -239,7 +247,11 @@ function SceneContent() {
           idea={idea}
           activeOrder={activeOrder}
           selected={idea.id === selectedIdeaId}
-          onClick={() => selectIdea(idea.id)}
+          onClick={() => {
+            if (interactive) {
+              selectIdea(idea.id);
+            }
+          }}
         />
       ))}
     </>

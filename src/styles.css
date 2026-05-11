@@ -37,6 +37,11 @@ button {
   background: #182124;
 }
 
+.ambient-shell {
+  min-width: 260px;
+  background: #10191c;
+}
+
 .parking-canvas {
   position: absolute !important;
   inset: 0;
@@ -164,6 +169,44 @@ button {
   background: rgb(24 33 36 / 68%);
   color: #fff7e4;
   backdrop-filter: blur(16px);
+}
+
+.ambient-hud {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.ambient-hud span,
+.ambient-hud button {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 999px;
+  background: rgb(16 25 28 / 70%);
+  color: #fff7e4;
+  box-shadow: 0 12px 30px rgb(0 0 0 / 20%);
+  backdrop-filter: blur(14px);
+}
+
+.ambient-hud span {
+  padding: 0 10px;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.ambient-hud button {
+  width: 32px;
+  margin-left: auto;
 }
 
 .modal-backdrop {
@@ -496,5 +539,15 @@ div:hover > .slot-tooltip {
     right: auto;
     max-width: calc(100vw - 84px);
     overflow-x: auto;
+  }
+
+  .bottom-toolbar button,
+  .sync-status {
+    min-height: 46px;
+  }
+
+  .clear-selection {
+    width: 46px;
+    height: 46px;
   }
 }

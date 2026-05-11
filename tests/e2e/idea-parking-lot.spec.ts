@@ -42,3 +42,11 @@ test("canceling a pending idea leaves the lot empty", async ({ page }) => {
   await expect(page.getByText("0/16 parked")).toBeVisible();
   await expect(page.getByText("New idea")).not.toBeVisible();
 });
+
+test("ambient mode shows the passive lot watcher", async ({ page }) => {
+  await page.goto("/?ambient=1");
+
+  await expect(page.getByLabel("Ambient parking lot status")).toContainText("0/16");
+  await expect(page.getByRole("button", { name: "Export" })).not.toBeVisible();
+  await expect(page.getByText("Park sparks before they vanish.")).not.toBeVisible();
+});

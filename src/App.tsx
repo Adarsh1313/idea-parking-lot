@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { Cloud, CloudOff, Download, Import, ParkingCircle, Route, X } from "lucide-react";
+import { Cloud, CloudOff, Download, Import, Maximize2, ParkingCircle, PictureInPicture2, Route, X } from "lucide-react";
 import type { IdeaDraftInput } from "./types";
 import { useIdeaStore } from "./store/ideaStore";
 import { ParkingLotScene } from "./scene/ParkingLotScene";
@@ -15,6 +15,7 @@ import {
 } from "./data/githubSync";
 
 const GITHUB_PAGES_URL = "https://adarsh1313.github.io/idea-parking-lot/";
+const AMBIENT_WINDOW_NAME = "idea-parking-lot-ambient";
 
 function encodeMigrationPayload(raw: string) {
   const bytes = new TextEncoder().encode(raw);
@@ -42,6 +43,7 @@ function isLocalDevelopmentHost() {
 
 export function App() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const isAmbientMode = new URLSearchParams(window.location.search).get("ambient") === "1";
   const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
   const [githubSyncEnabled, setGithubSyncEnabled] = useState(hasGitHubSyncToken);
   const [syncStatus, setSyncStatus] = useState(githubSyncEnabled ? "GitHub sync ready" : "Local only");
@@ -68,6 +70,18 @@ export function App() {
   useEffect(() => {
     void loadIdeas();
   }, [loadIdeas]);
+
+  useEffect(() => {
+    if (!isAmbientMode) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void loadIdeas();
+    }, 5000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isAmbientMode, loadIdeas]);
 
   useEffect(() => {
     if (!loaded || !githubSyncEnabled) {
@@ -228,13 +242,51 @@ export function App() {
     setSyncStatus("Connecting to GitHub...");
   }
 
+  function openAmbientWindow() {
+    const width = 430;
+    const height = 300;
+    const screenWithOffsets = window.screen as Screen & { availLeft?: number; availTop?: number };
+    const screenLeft = screenWithOffsets.availLeft ?? window.screenLeft ?? 0;
+    const screenTop = screenWithOffsets.availTop ?? window.screenTop ?? 0;
+    const left = Math.max(0, screenLeft + window.screen.availWidth - width - 18);
+    const top = Math.max(0, screenTop + window.screen.availHeight - height - 60);
+    const url = new URL(window.location.href);
+    url.searchParams.set("ambient", "1");
+    url.searchParams.delete("importIdeas");
+    url.searchParams.delete("migrate");
+
+    const ambientWindow = window.open(
+      url.toString(),
+      AMBIENT_WINDOW_NAME,
+      `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=no`
+    );
+
+    ambientWindow?.focus();
+  }
+
+  function openFullApp() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("ambient");
+    window.open(url.toString(), "_blank", "noopener,noreferrer");
+  }
+
   return (
-    <main className="app-shell">
+    <main className={isAmbientMode ? "app-shell ambient-shell" : "app-shell"}>
       <Suspense fallback={<div className="scene-loader">Preparing the lot...</div>}>
-        <ParkingLotScene />
+        <ParkingLotScene interactive={!isAmbientMode} />
       </Suspense>
 
-      <section className="top-hud" aria-label="Parking lot status">
+      {isAmbientMode ? (
+        <section className="ambient-hud" aria-label="Ambient parking lot status">
+          <span><ParkingCircle size={15} /> {visibleIdeas.length}/{parkableSlotCount}</span>
+          <span><Route size={15} /> {activeCount}</span>
+          <button type="button" onClick={openFullApp} aria-label="Open full Idea Parking Lot app">
+            <Maximize2 size={15} />
+          </button>
+        </section>
+      ) : null}
+
+      {!isAmbientMode ? <section className="top-hud" aria-label="Parking lot status">
         <div>
           <p className="eyebrow">Idea Parking Lot</p>
           <h1>Park sparks before they vanish.</h1>
@@ -244,9 +296,9 @@ export function App() {
           <span><Route size={18} /> {activeCount} active</span>
           <span>{archivedCount} archived</span>
         </div>
-      </section>
+      </section> : null}
 
-      <section className="bottom-toolbar" aria-label="Backup controls">
+      {!isAmbientMode ? <section className="bottom-toolbar" aria-label="Backup controls">
         <button type="button" onClick={handleExport} disabled={!loaded}>
           <Download size={18} />
           Export
@@ -266,8 +318,12 @@ export function App() {
           {githubSyncEnabled ? <CloudOff size={18} /> : <Cloud size={18} />}
           {githubSyncEnabled ? "Disconnect GitHub" : "Connect GitHub"}
         </button>
+        <button type="button" onClick={openAmbientWindow} disabled={!loaded}>
+          <PictureInPicture2 size={18} />
+          Ambient Lot
+        </button>
         <span className="sync-status">{syncStatus}</span>
-      </section>
+      </section> : null}
 
       <section className="visually-hidden" aria-label="Accessible parking spaces">
         {PARKING_SLOTS.map((slot) => {
@@ -287,7 +343,7 @@ export function App() {
         })}
       </section>
 
-      {pendingIdea ? (
+      {!isAmbientMode && pendingIdea ? (
         <IdeaModal
           title="New idea"
           accentColor={pendingIdea.carColor}
@@ -297,7 +353,7 @@ export function App() {
         />
       ) : null}
 
-      {editingIdea ? (
+      {!isAmbientMode && editingIdea ? (
         <IdeaModal
           title="Tune this idea"
           accentColor={editingIdea.carColor}
@@ -313,7 +369,7 @@ export function App() {
         />
       ) : null}
 
-      {selectedIdea ? (
+      {!isAmbientMode && selectedIdea ? (
         <IdeaInspector
           idea={selectedIdea}
           onClose={() => selectIdea(null)}
@@ -324,9 +380,9 @@ export function App() {
         />
       ) : null}
 
-      <button className="clear-selection" type="button" aria-label="Clear selected idea" onClick={() => selectIdea(null)}>
+      {!isAmbientMode ? <button className="clear-selection" type="button" aria-label="Clear selected idea" onClick={() => selectIdea(null)}>
         <X size={18} />
-      </button>
+      </button> : null}
     </main>
   );
 }

@@ -1,0 +1,35 @@
+{
+  "name": "Idea Parking Lot",
+  "short_name": "Idea Lot",
+  "description": "A tiny 3D parking lot for saving, syncing, and revisiting ideas.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#182124",
+  "theme_color": "#182124",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Open Ambient Lot",
+      "short_name": "Ambient",
+      "description": "Open the passive parking lot watcher.",
+      "url": "./?ambient=1",
+      "icons": [
+        {
+          "src": "favicon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ]
+}
