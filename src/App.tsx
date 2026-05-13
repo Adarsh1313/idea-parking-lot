@@ -10,6 +10,7 @@ import {
   ParkingCircle,
   PictureInPicture2,
   Route,
+  RotateCw,
   X
 } from "lucide-react";
 import type { IdeaDraftInput } from "./types";
@@ -33,6 +34,7 @@ import {
 
 const GITHUB_PAGES_URL = "https://adarsh1313.github.io/idea-parking-lot/";
 const AMBIENT_WINDOW_NAME = "idea-parking-lot-ambient";
+const PUBLIC_REFRESH_INTERVAL_MS = 5000;
 
 function encodeMigrationPayload(raw: string) {
   const bytes = new TextEncoder().encode(raw);
@@ -144,10 +146,30 @@ export function App() {
 
     const intervalId = window.setInterval(() => {
       void refreshSharedIdeas("Updated");
-    }, isAmbientMode ? 10000 : 30000);
+    }, PUBLIC_REFRESH_INTERVAL_MS);
 
     return () => window.clearInterval(intervalId);
   }, [isAmbientMode, loaded, ownerModeEnabled]);
+
+  useEffect(() => {
+    if (!loaded || ownerModeEnabled) {
+      return;
+    }
+
+    function refreshWhenVisible() {
+      if (document.visibilityState === "visible") {
+        void refreshSharedIdeas("Updated");
+      }
+    }
+
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    return () => {
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [loaded, ownerModeEnabled]);
 
   useEffect(() => {
     if (!loaded || !ownerModeEnabled || !remoteLoaded) {
@@ -397,6 +419,12 @@ export function App() {
           <PictureInPicture2 size={18} />
           Ambient Lot
         </button>
+        {!ownerModeEnabled ? (
+          <button type="button" onClick={() => void refreshSharedIdeas("Updated")} disabled={!loaded}>
+            <RotateCw size={18} />
+            Refresh Garage
+          </button>
+        ) : null}
         {ownerModeEnabled && !hasGitHubSyncToken() ? (
           <button type="button" onClick={() => setShowPublishSetup(true)} disabled={!loaded}>
             Enable Public Sync

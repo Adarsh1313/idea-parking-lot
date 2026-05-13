@@ -139,8 +139,13 @@ async function requestGitHub<T>(path: string, init: RequestInit = {}) {
 }
 
 export async function pullIdeasFromGitHub() {
-  const rawResponse = await fetch(`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${DATA_PATH}`, {
-    cache: "no-store"
+  const rawUrl = new URL(`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${DATA_PATH}`);
+  rawUrl.searchParams.set("t", String(Date.now()));
+  const rawResponse = await fetch(rawUrl.toString(), {
+    cache: "reload",
+    headers: {
+      "Cache-Control": "no-cache"
+    }
   });
 
   if (rawResponse.ok) {
