@@ -119,6 +119,7 @@ async function requestGitHub<T>(path: string, init: RequestInit = {}) {
   const token = getStoredGitHubToken();
   const response = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/${path}`, {
     ...init,
+    cache: "no-store",
     headers: {
       Accept: "application/vnd.github+json",
       "X-GitHub-Api-Version": "2022-11-28",
@@ -139,6 +140,17 @@ async function requestGitHub<T>(path: string, init: RequestInit = {}) {
 }
 
 export async function pullIdeasFromGitHub() {
+  try {
+    const remoteFile = await requestGitHub<GitHubContentResponse>(`contents/${DATA_PATH}?ref=${BRANCH}`);
+
+    if (remoteFile) {
+      return parseImportPayload(decodeUtf8Base64(remoteFile.content));
+    }
+  } catch {
+    // Fall through to raw GitHub. It may be slightly more cached, but it keeps
+    // public viewing alive if the API is unavailable or rate-limited.
+  }
+
   const rawUrl = new URL(`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${DATA_PATH}`);
   rawUrl.searchParams.set("t", String(Date.now()));
 
@@ -155,17 +167,10 @@ export async function pullIdeasFromGitHub() {
       throw new Error(`Could not load public ideas: ${rawResponse.status} ${rawResponse.statusText}`);
     }
   } catch {
-    // Some browsers/extensions block raw.githubusercontent.com. Fall back to the
-    // GitHub Contents API so public viewers still get the shared garage.
+    // Some browsers/extensions block raw.githubusercontent.com. The API path
+    // above is the primary public read, so this fallback can quietly fail.
   }
-
-  const remoteFile = await requestGitHub<GitHubContentResponse>(`contents/${DATA_PATH}?ref=${BRANCH}`);
-
-  if (!remoteFile) {
-    return null;
-  }
-
-  return parseImportPayload(decodeUtf8Base64(remoteFile.content));
+  return null;
 }
 
 export async function pushIdeasToGitHub(payload: IdeaParkingLotExport) {
