@@ -438,8 +438,9 @@ function ParkingSpace({
   onClick: () => void;
 }) {
   const isDecorative = slot.kind !== "standard";
-  const color = isDecorative ? "#456c7a" : ideaStatus === "active" ? "#8b2f2a" : occupied ? "#3f7656" : "#657074";
+  const color = isDecorative ? "#456c7a" : ideaStatus === "active" ? "#8b2f2a" : occupied ? "#7a3630" : "#657074";
   const stripeColor = slot.kind === "disability" ? "#7ec8ff" : "#f1f4ef";
+  const slotLabelClassName = occupied ? "slot-number occupied-slot-number" : "slot-number available-slot-number";
 
   return (
     <group position={[slot.x, 0.08, slot.z]} rotation-y={slot.rotation}>
@@ -469,9 +470,9 @@ function ParkingSpace({
         <meshStandardMaterial color={stripeColor} />
       </mesh>
       {slot.kind === "disability" ? <DisabilityParkingMark /> : null}
-      {showLabel ? (
-        <Html position={[0, 0.18, 0.56]} center className={isDecorative ? "slot-number reserved-slot" : "slot-number"}>
-          {slot.kind === "disability" ? "♿" : slot.label}
+      {showLabel && !isDecorative ? (
+        <Html position={[0, 0.18, 0.56]} center className={slotLabelClassName}>
+          {slot.label}
         </Html>
       ) : null}
     </group>
@@ -482,19 +483,23 @@ function DisabilityParkingMark() {
   return (
     <group position={[0, 0.12, -0.08]}>
       <mesh rotation-x={-Math.PI / 2}>
-        <circleGeometry args={[0.24, 24]} />
+        <circleGeometry args={[0.28, 24]} />
         <meshStandardMaterial color="#7ec8ff" emissive="#1f719c" emissiveIntensity={0.12} />
       </mesh>
-      <mesh position={[0.02, 0.035, 0.2]}>
-        <boxGeometry args={[0.1, 0.04, 0.48]} />
+      <mesh position={[-0.02, 0.035, 0.02]}>
+        <boxGeometry args={[0.08, 0.04, 0.44]} />
         <meshStandardMaterial color="#f7fbff" />
       </mesh>
-      <mesh position={[0.18, 0.04, -0.03]} rotation-y={0.55}>
-        <boxGeometry args={[0.08, 0.04, 0.52]} />
+      <mesh position={[0.14, 0.04, -0.08]} rotation-y={0.56}>
+        <boxGeometry args={[0.07, 0.04, 0.36]} />
         <meshStandardMaterial color="#f7fbff" />
       </mesh>
-      <mesh position={[0.27, 0.045, -0.3]} rotation-x={-Math.PI / 2}>
-        <torusGeometry args={[0.22, 0.035, 8, 24]} />
+      <mesh position={[0.15, 0.045, -0.29]} rotation-x={-Math.PI / 2}>
+        <torusGeometry args={[0.17, 0.03, 8, 24]} />
+        <meshStandardMaterial color="#f7fbff" />
+      </mesh>
+      <mesh position={[-0.02, 0.04, 0.18]}>
+        <boxGeometry args={[0.24, 0.04, 0.06]} />
         <meshStandardMaterial color="#f7fbff" />
       </mesh>
     </group>
@@ -759,3 +764,4 @@ function LowPolyCar({ color, rotation = 0 }: { color: string; rotation?: number 
     </group>
   );
 }
+

@@ -530,8 +530,14 @@ button {
   letter-spacing: 0.06em;
 }
 
-.reserved-slot {
-  color: #fff7e4;
+.available-slot-number {
+  background: rgb(68 122 88 / 88%);
+  color: #f6fff5;
+}
+
+.occupied-slot-number {
+  background: rgb(145 54 46 / 90%);
+  color: #fff4f1;
 }
 
 .road-label {

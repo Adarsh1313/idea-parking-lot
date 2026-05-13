@@ -45,6 +45,9 @@ test("creates, inspects, activates, and edits an idea", async ({ page }) => {
 
   await unlockOwnerMode(page);
   await expect(page.getByText("0/20 parked")).toBeVisible();
+  await expect(page.locator(".slot-number").filter({ hasText: "ADA" })).toHaveCount(0);
+  await expect(page.locator(".slot-number").filter({ hasText: "RES" })).toHaveCount(0);
+  await expect(page.locator(".slot-number").filter({ hasText: "LOAD" })).toHaveCount(0);
   await startIdeaInSlot(page, "P-03");
   await expect(page.getByText("New idea")).toBeVisible();
   await expect(page.locator(".slot-number")).toHaveCount(0);
