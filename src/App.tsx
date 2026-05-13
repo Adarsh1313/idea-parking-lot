@@ -1,5 +1,17 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { Cloud, CloudOff, Download, Import, Maximize2, ParkingCircle, PictureInPicture2, Route, X } from "lucide-react";
+import {
+  Cloud,
+  CloudOff,
+  Download,
+  Eye,
+  Import,
+  LockKeyhole,
+  Maximize2,
+  ParkingCircle,
+  PictureInPicture2,
+  Route,
+  X
+} from "lucide-react";
 import type { IdeaDraftInput } from "./types";
 import { useIdeaStore } from "./store/ideaStore";
 import { ParkingLotScene } from "./scene/ParkingLotScene";
@@ -8,9 +20,11 @@ import { IdeaInspector } from "./ui/IdeaInspector";
 import { PARKING_SLOTS } from "./scene/layout";
 import {
   clearStoredGitHubToken,
+  getStoredOwnerEmail,
   hasGitHubSyncToken,
   pullIdeasFromGitHub,
   pushIdeasToGitHub,
+  storeOwnerEmail,
   storeGitHubToken
 } from "./data/githubSync";
 
@@ -45,9 +59,12 @@ export function App() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isAmbientMode = new URLSearchParams(window.location.search).get("ambient") === "1";
   const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
-  const [githubSyncEnabled, setGithubSyncEnabled] = useState(hasGitHubSyncToken);
-  const [syncStatus, setSyncStatus] = useState(githubSyncEnabled ? "GitHub sync ready" : "Local only");
-  const [remoteLoaded, setRemoteLoaded] = useState(!githubSyncEnabled);
+  const [ownerModeEnabled, setOwnerModeEnabled] = useState(hasGitHubSyncToken);
+  const [showViewerIntro, setShowViewerIntro] = useState(() => !hasGitHubSyncToken() && !isAmbientMode);
+  const [authEmail, setAuthEmail] = useState(getStoredOwnerEmail);
+  const [authSecret, setAuthSecret] = useState("");
+  const [syncStatus, setSyncStatus] = useState("Loading shared GitHub database...");
+  const [remoteLoaded, setRemoteLoaded] = useState(false);
   const lastSyncedPayloadRef = useRef<string | null>(null);
   const {
     ideas,
@@ -67,44 +84,36 @@ export function App() {
     importIdeas
   } = useIdeaStore();
 
+  async function refreshSharedIdeas(statusPrefix = "Viewing") {
+    const remotePayload = await pullIdeasFromGitHub();
+
+    if (!remotePayload) {
+      setSyncStatus(ownerModeEnabled ? "Owner mode ready. No GitHub database yet." : "No shared ideas published yet.");
+      return;
+    }
+
+    await importIdeas(JSON.stringify(remotePayload));
+    lastSyncedPayloadRef.current = JSON.stringify(remotePayload);
+    setSyncStatus(ownerModeEnabled ? "Owner mode ready" : `${statusPrefix} ${remotePayload.ideas.length} shared ideas`);
+  }
+
   useEffect(() => {
     void loadIdeas();
   }, [loadIdeas]);
 
   useEffect(() => {
-    if (!isAmbientMode) {
-      return;
-    }
-
-    const intervalId = window.setInterval(() => {
-      void loadIdeas();
-    }, 5000);
-
-    return () => window.clearInterval(intervalId);
-  }, [isAmbientMode, loadIdeas]);
-
-  useEffect(() => {
-    if (!loaded || !githubSyncEnabled) {
+    if (!loaded) {
       return;
     }
 
     let cancelled = false;
-    setSyncStatus("Loading GitHub database...");
+    setSyncStatus("Loading shared GitHub database...");
 
-    void pullIdeasFromGitHub()
-      .then(async (remotePayload) => {
+    void refreshSharedIdeas()
+      .then(() => {
         if (cancelled) {
           return;
         }
-
-        if (remotePayload) {
-          await importIdeas(JSON.stringify(remotePayload));
-          lastSyncedPayloadRef.current = JSON.stringify(remotePayload);
-          setSyncStatus(`Synced ${remotePayload.ideas.length} ideas from GitHub`);
-        } else {
-          setSyncStatus("Creating GitHub database...");
-        }
-
         setRemoteLoaded(true);
       })
       .catch((caughtError) => {
@@ -113,17 +122,28 @@ export function App() {
         }
 
         setRemoteLoaded(true);
-        setGithubSyncEnabled(false);
-        setSyncStatus(caughtError instanceof Error ? caughtError.message : "Could not load GitHub database.");
+        setSyncStatus(caughtError instanceof Error ? caughtError.message : "Could not load shared GitHub database.");
       });
 
     return () => {
       cancelled = true;
     };
-  }, [githubSyncEnabled, importIdeas, loaded]);
+  }, [loaded, ownerModeEnabled]);
 
   useEffect(() => {
-    if (!loaded || !githubSyncEnabled || !remoteLoaded) {
+    if (!loaded || ownerModeEnabled) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refreshSharedIdeas("Updated");
+    }, isAmbientMode ? 10000 : 30000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isAmbientMode, loaded, ownerModeEnabled]);
+
+  useEffect(() => {
+    if (!loaded || !ownerModeEnabled || !remoteLoaded) {
       return;
     }
 
@@ -147,7 +167,7 @@ export function App() {
     }, 900);
 
     return () => window.clearTimeout(timeoutId);
-  }, [exportIdeas, githubSyncEnabled, ideas, loaded, remoteLoaded]);
+  }, [exportIdeas, ownerModeEnabled, ideas, loaded, remoteLoaded]);
 
   useEffect(() => {
     if (!loaded) {
@@ -220,26 +240,37 @@ export function App() {
   }
 
   async function handleGitHubSyncToggle() {
-    if (githubSyncEnabled) {
+    if (ownerModeEnabled) {
       clearStoredGitHubToken();
-      setGithubSyncEnabled(false);
+      setOwnerModeEnabled(false);
+      setShowViewerIntro(true);
       setRemoteLoaded(true);
-      setSyncStatus("Local only");
+      setSyncStatus("Viewer mode");
       return;
     }
 
-    const token = window.prompt(
-      "Paste a GitHub fine-grained token with Contents: Read and write access for Adarsh1313/idea-parking-lot."
-    );
-
-    if (!token?.trim()) {
+    if (!authEmail.trim() || !authSecret.trim()) {
+      setSyncStatus("Enter owner email and GitHub token to unlock editing.");
       return;
     }
 
-    storeGitHubToken(token);
+    storeOwnerEmail(authEmail);
+    storeGitHubToken(authSecret);
+    setAuthSecret("");
     setRemoteLoaded(false);
-    setGithubSyncEnabled(true);
-    setSyncStatus("Connecting to GitHub...");
+    setOwnerModeEnabled(true);
+    setShowViewerIntro(false);
+    setSyncStatus("Owner mode unlocked. Loading shared database...");
+  }
+
+  function handleOwnerButton() {
+    if (ownerModeEnabled) {
+      void handleGitHubSyncToggle();
+      return;
+    }
+
+    setShowViewerIntro(true);
+    setSyncStatus("Enter owner email and GitHub token to unlock editing.");
   }
 
   function openAmbientWindow() {
@@ -273,7 +304,7 @@ export function App() {
   return (
     <main className={isAmbientMode ? "app-shell ambient-shell" : "app-shell"}>
       <Suspense fallback={<div className="scene-loader">Preparing the lot...</div>}>
-        <ParkingLotScene interactive={!isAmbientMode} />
+        <ParkingLotScene interactive={!isAmbientMode} canEdit={ownerModeEnabled} />
       </Suspense>
 
       {isAmbientMode ? (
@@ -299,14 +330,18 @@ export function App() {
       </section> : null}
 
       {!isAmbientMode ? <section className="bottom-toolbar" aria-label="Backup controls">
-        <button type="button" onClick={handleExport} disabled={!loaded}>
-          <Download size={18} />
-          Export
-        </button>
-        <button type="button" onClick={() => fileInputRef.current?.click()} disabled={!loaded}>
-          <Import size={18} />
-          Import
-        </button>
+        {ownerModeEnabled ? (
+          <>
+            <button type="button" onClick={handleExport} disabled={!loaded}>
+              <Download size={18} />
+              Export
+            </button>
+            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={!loaded}>
+              <Import size={18} />
+              Import
+            </button>
+          </>
+        ) : null}
         <input
           ref={fileInputRef}
           className="visually-hidden"
@@ -314,9 +349,9 @@ export function App() {
           accept="application/json"
           onChange={(event) => void handleImport(event.target.files?.[0])}
         />
-        <button type="button" onClick={() => void handleGitHubSyncToggle()} disabled={!loaded}>
-          {githubSyncEnabled ? <CloudOff size={18} /> : <Cloud size={18} />}
-          {githubSyncEnabled ? "Disconnect GitHub" : "Connect GitHub"}
+        <button type="button" onClick={handleOwnerButton} disabled={!loaded}>
+          {ownerModeEnabled ? <CloudOff size={18} /> : <Cloud size={18} />}
+          {ownerModeEnabled ? "Lock Owner Mode" : "Owner Login"}
         </button>
         <button type="button" onClick={openAmbientWindow} disabled={!loaded}>
           <PictureInPicture2 size={18} />
@@ -324,6 +359,44 @@ export function App() {
         </button>
         <span className="sync-status">{syncStatus}</span>
       </section> : null}
+
+      {!isAmbientMode && showViewerIntro ? (
+        <section className="viewer-intro" aria-label="Viewer welcome">
+          <button type="button" className="icon-button intro-close" aria-label="Close viewer intro" onClick={() => setShowViewerIntro(false)}>
+            <X size={18} />
+          </button>
+          <p className="eyebrow">Public View</p>
+          <h2>Peek at Adarsh's idea lot.</h2>
+          <p>
+            This is a shared read-only view of the projects currently parked, active, or archived. Close this card to browse the lot.
+          </p>
+          <div className="owner-login-form">
+            <label>
+              Owner email
+              <input value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="you@example.com" />
+            </label>
+            <label>
+              Owner password / GitHub token
+              <input
+                value={authSecret}
+                type="password"
+                onChange={(event) => setAuthSecret(event.target.value)}
+                placeholder="Fine-grained GitHub token"
+              />
+            </label>
+          </div>
+          <div className="intro-actions">
+            <button type="button" className="primary-button" onClick={() => void handleGitHubSyncToggle()}>
+              <LockKeyhole size={17} />
+              Unlock editing
+            </button>
+            <button type="button" className="secondary-button" onClick={() => setShowViewerIntro(false)}>
+              <Eye size={17} />
+              View only
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       <section className="visually-hidden" aria-label="Accessible parking spaces">
         {PARKING_SLOTS.map((slot) => {
@@ -334,16 +407,16 @@ export function App() {
             <button
               key={slot.index}
               type="button"
-              disabled={unavailable}
+              disabled={unavailable || !ownerModeEnabled}
               onClick={() => startPendingIdea(slot.index)}
             >
-              {slot.kind === "standard" ? `Start idea in ${slot.label}` : `${slot.label} is reserved for lot scenery`}
+              {slot.kind === "standard" ? `Start idea in ${slot.label}` : `${slot.label} is a disability parking space`}
             </button>
           );
         })}
       </section>
 
-      {!isAmbientMode && pendingIdea ? (
+      {!isAmbientMode && ownerModeEnabled && pendingIdea ? (
         <IdeaModal
           title="New idea"
           accentColor={pendingIdea.carColor}
@@ -353,7 +426,7 @@ export function App() {
         />
       ) : null}
 
-      {!isAmbientMode && editingIdea ? (
+      {!isAmbientMode && ownerModeEnabled && editingIdea ? (
         <IdeaModal
           title="Tune this idea"
           accentColor={editingIdea.carColor}
@@ -373,6 +446,7 @@ export function App() {
         <IdeaInspector
           idea={selectedIdea}
           onClose={() => selectIdea(null)}
+          canEdit={ownerModeEnabled}
           onEdit={() => setEditingIdeaId(selectedIdea.id)}
           onDelete={() => void deleteIdea(selectedIdea.id)}
           onToggleActive={() => void toggleActive(selectedIdea.id)}

@@ -3,6 +3,7 @@ import type { Idea } from "../types";
 
 type IdeaInspectorProps = {
   idea: Idea;
+  canEdit?: boolean;
   onClose: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -10,7 +11,7 @@ type IdeaInspectorProps = {
   onArchive: () => void;
 };
 
-export function IdeaInspector({ idea, onClose, onEdit, onDelete, onToggleActive, onArchive }: IdeaInspectorProps) {
+export function IdeaInspector({ idea, canEdit = true, onClose, onEdit, onDelete, onToggleActive, onArchive }: IdeaInspectorProps) {
   return (
     <aside className="idea-inspector" aria-label="Selected idea">
       <div className="inspector-header">
@@ -20,7 +21,7 @@ export function IdeaInspector({ idea, onClose, onEdit, onDelete, onToggleActive,
         </button>
       </div>
 
-      <p className="eyebrow">{idea.ideaId} · {idea.status === "active" ? "Active loop" : idea.status === "archived" ? "Archived" : `Slot ${idea.slotIndex + 1}`}</p>
+      <p className="eyebrow">{idea.ideaId} | {idea.status === "active" ? "Active loop" : idea.status === "archived" ? "Archived" : `Slot ${idea.slotIndex + 1}`}</p>
       <h2>{idea.title}</h2>
       {idea.description ? <FormattedDescription value={idea.description} /> : <p className="idea-description muted">No notes yet.</p>}
 
@@ -33,24 +34,28 @@ export function IdeaInspector({ idea, onClose, onEdit, onDelete, onToggleActive,
         ))}
       </div>
 
-      <div className="inspector-actions">
-        <button type="button" className={idea.status === "active" ? "primary-button active" : "primary-button"} onClick={onToggleActive}>
-          <Power size={17} />
-          {idea.status === "active" ? "Park it" : "Set active"}
-        </button>
-        <button type="button" className={idea.status === "archived" ? "secondary-button active" : "secondary-button"} onClick={onArchive}>
-          <Archive size={17} />
-          {idea.status === "archived" ? "Restore" : "Archive"}
-        </button>
-        <button type="button" className="secondary-button" onClick={onEdit}>
-          <Edit3 size={17} />
-          Edit
-        </button>
-        <button type="button" className="danger-button" onClick={onDelete}>
-          <Trash2 size={17} />
-          Delete
-        </button>
-      </div>
+      {canEdit ? (
+        <div className="inspector-actions">
+          <button type="button" className={idea.status === "active" ? "primary-button active" : "primary-button"} onClick={onToggleActive}>
+            <Power size={17} />
+            {idea.status === "active" ? "Park it" : "Set active"}
+          </button>
+          <button type="button" className={idea.status === "archived" ? "secondary-button active" : "secondary-button"} onClick={onArchive}>
+            <Archive size={17} />
+            {idea.status === "archived" ? "Restore" : "Archive"}
+          </button>
+          <button type="button" className="secondary-button" onClick={onEdit}>
+            <Edit3 size={17} />
+            Edit
+          </button>
+          <button type="button" className="danger-button" onClick={onDelete}>
+            <Trash2 size={17} />
+            Delete
+          </button>
+        </div>
+      ) : (
+        <p className="viewer-note">Viewer mode: this idea is read-only.</p>
+      )}
     </aside>
   );
 }

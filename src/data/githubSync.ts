@@ -6,6 +6,7 @@ const REPO = "idea-parking-lot";
 const BRANCH = "main";
 const DATA_PATH = "data/ideas.json";
 const TOKEN_KEY = "idea-parking-lot.github-token";
+const OWNER_EMAIL_KEY = "idea-parking-lot.owner-email";
 
 type GitHubContentResponse = {
   content: string;
@@ -20,8 +21,17 @@ export function storeGitHubToken(token: string) {
   localStorage.setItem(TOKEN_KEY, token.trim());
 }
 
+export function getStoredOwnerEmail() {
+  return localStorage.getItem(OWNER_EMAIL_KEY) ?? "";
+}
+
+export function storeOwnerEmail(email: string) {
+  localStorage.setItem(OWNER_EMAIL_KEY, email.trim());
+}
+
 export function clearStoredGitHubToken() {
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(OWNER_EMAIL_KEY);
 }
 
 export function hasGitHubSyncToken() {
@@ -47,12 +57,13 @@ function decodeUtf8Base64(value: string) {
 }
 
 async function requestGitHub<T>(path: string, init: RequestInit = {}) {
+  const token = getStoredGitHubToken();
   const response = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/${path}`, {
     ...init,
     headers: {
       Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${getStoredGitHubToken()}`,
       "X-GitHub-Api-Version": "2022-11-28",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init.headers
     }
   });
@@ -69,6 +80,18 @@ async function requestGitHub<T>(path: string, init: RequestInit = {}) {
 }
 
 export async function pullIdeasFromGitHub() {
+  const rawResponse = await fetch(`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${DATA_PATH}`, {
+    cache: "no-store"
+  });
+
+  if (rawResponse.ok) {
+    return parseImportPayload(await rawResponse.text());
+  }
+
+  if (rawResponse.status !== 404) {
+    throw new Error(`Could not load public ideas: ${rawResponse.status} ${rawResponse.statusText}`);
+  }
+
   const remoteFile = await requestGitHub<GitHubContentResponse>(`contents/${DATA_PATH}?ref=${BRANCH}`);
 
   if (!remoteFile) {

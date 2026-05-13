@@ -20,7 +20,8 @@ import {
   type SlotLayout
 } from "./layout";
 
-const CAMERA_DEFAULT = new THREE.Vector3(0, 23, 20);
+const CAMERA_DEFAULT = new THREE.Vector3(0, 24, 22);
+const CAMERA_MOBILE = new THREE.Vector3(0, 31, 29);
 const CAMERA_LOOK_AT = new THREE.Vector3(0, 0, 0);
 const CAR_FORWARD_OFFSET = Math.PI * 0.5;
 
@@ -65,9 +66,11 @@ function getSkyMode() {
 
 type ParkingLotSceneProps = {
   interactive?: boolean;
+  canEdit?: boolean;
+  showSlotLabels?: boolean;
 };
 
-export function ParkingLotScene({ interactive = true }: ParkingLotSceneProps) {
+export function ParkingLotScene({ interactive = true, canEdit = true, showSlotLabels = true }: ParkingLotSceneProps) {
   const [webglLost, setWebglLost] = useState(false);
   const skyMode = useMemo(getSkyMode, []);
   const skyColor = skyMode === "night" ? "#07111d" : skyMode === "morning" ? "#cfe6ef" : "#b7c9c6";
@@ -78,7 +81,7 @@ export function ParkingLotScene({ interactive = true }: ParkingLotSceneProps) {
       <div className="canvas-backdrop" aria-hidden="true" />
       <Canvas
         className="parking-canvas"
-        camera={{ position: CAMERA_DEFAULT, fov: 46 }}
+        camera={{ position: CAMERA_DEFAULT, fov: 50 }}
         shadows
         dpr={[1, 1.25]}
         gl={{ antialias: true, alpha: false, powerPreference: "default" }}
@@ -97,7 +100,7 @@ export function ParkingLotScene({ interactive = true }: ParkingLotSceneProps) {
         <hemisphereLight args={[skyMode === "night" ? "#37516b" : "#fff7df", "#6f7b7c", skyMode === "night" ? 0.65 : 1.15]} />
         <directionalLight position={[8, 13, 8]} intensity={skyMode === "night" ? 0.35 : 1.4} castShadow shadow-mapSize={[1024, 1024]} />
         <SkyAmbience mode={skyMode} />
-        <SceneContent interactive={interactive} />
+        <SceneContent interactive={interactive} canEdit={canEdit} showSlotLabels={showSlotLabels} />
         <OrbitControls
           enablePan={false}
           minPolarAngle={0.38}
@@ -208,7 +211,7 @@ function CanvasFallback() {
   );
 }
 
-function SceneContent({ interactive }: { interactive: boolean }) {
+function SceneContent({ interactive, canEdit, showSlotLabels }: { interactive: boolean; canEdit: boolean; showSlotLabels: boolean }) {
   const ideas = useIdeaStore((state) => state.ideas);
   const pendingIdea = useIdeaStore((state) => state.pendingIdea);
   const selectedIdeaId = useIdeaStore((state) => state.selectedIdeaId);
@@ -216,6 +219,7 @@ function SceneContent({ interactive }: { interactive: boolean }) {
   const selectIdea = useIdeaStore((state) => state.selectIdea);
   const visibleIdeas = useMemo(() => ideas.filter((idea) => idea.status !== "archived"), [ideas]);
   const occupiedSlots = useMemo(() => new Set(visibleIdeas.map((idea) => idea.slotIndex)), [visibleIdeas]);
+  const ideaStatusBySlot = useMemo(() => new Map(visibleIdeas.map((idea) => [idea.slotIndex, idea.status])), [visibleIdeas]);
   const selectedIdea = ideas.find((idea) => idea.id === selectedIdeaId) ?? null;
   const selectedActiveOrder = Math.max(0, ideas.findIndex((idea) => idea.id === selectedIdeaId));
 
@@ -231,8 +235,10 @@ function SceneContent({ interactive }: { interactive: boolean }) {
           key={slot.index}
           slot={slot}
           occupied={occupiedSlots.has(slot.index)}
+          ideaStatus={ideaStatusBySlot.get(slot.index)}
+          showLabel={showSlotLabels && !pendingIdea}
           onClick={() => {
-            if (interactive) {
+            if (interactive && canEdit) {
               startPendingIdea(slot.index);
             }
           }}
@@ -259,12 +265,13 @@ function SceneContent({ interactive }: { interactive: boolean }) {
 }
 
 function CameraRig({ selectedIdea, activeOrder }: { selectedIdea: Idea | null; activeOrder: number }) {
-  const { camera } = useThree();
+  const { camera, size } = useThree();
   const activeCurve = useMemo(() => createCurve(ACTIVE_ROUTE, true), []);
+  const isMobile = size.width < 760;
   const target = useMemo(() => {
     if (!selectedIdea) {
       return {
-        position: CAMERA_DEFAULT,
+        position: isMobile ? CAMERA_MOBILE : CAMERA_DEFAULT,
         lookAt: CAMERA_LOOK_AT
       };
     }
@@ -272,22 +279,29 @@ function CameraRig({ selectedIdea, activeOrder }: { selectedIdea: Idea | null; a
     if (selectedIdea.status === "active") {
       const carPoint = activeCurve.getPointAt((performance.now() * 0.000035 + activeOrder * 0.13) % 1);
       return {
-        position: new THREE.Vector3(carPoint.x + 5.4, 7.2, carPoint.z + 5.6),
+        position: new THREE.Vector3(carPoint.x + (isMobile ? 8.4 : 5.4), isMobile ? 10.2 : 7.2, carPoint.z + (isMobile ? 8.6 : 5.6)),
         lookAt: new THREE.Vector3(carPoint.x, 0.34, carPoint.z)
       };
     }
 
     const [x, , z] = getSlotPosition(selectedIdea.slotIndex);
     return {
-      position: new THREE.Vector3(x + 3.3, 5.4, z + 4.3),
+      position: new THREE.Vector3(x + (isMobile ? 6.4 : 3.3), isMobile ? 8.6 : 5.4, z + (isMobile ? 7.3 : 4.3)),
       lookAt: new THREE.Vector3(x, 0.3, z)
     };
-  }, [activeCurve, activeOrder, selectedIdea]);
+  }, [activeCurve, activeOrder, isMobile, selectedIdea]);
 
   useFrame(({ clock }) => {
+    const perspectiveCamera = camera as THREE.PerspectiveCamera;
+    const desiredFov = isMobile ? 58 : 50;
+    if (perspectiveCamera.isPerspectiveCamera && Math.abs(perspectiveCamera.fov - desiredFov) > 0.1) {
+      perspectiveCamera.fov = desiredFov;
+      perspectiveCamera.updateProjectionMatrix();
+    }
+
     if (selectedIdea?.status === "active") {
       const carPoint = activeCurve.getPointAt((clock.elapsedTime * 0.035 + activeOrder * 0.13) % 1);
-      camera.position.lerp(new THREE.Vector3(carPoint.x + 5.4, 7.2, carPoint.z + 5.6), 0.045);
+      camera.position.lerp(new THREE.Vector3(carPoint.x + (isMobile ? 8.4 : 5.4), isMobile ? 10.2 : 7.2, carPoint.z + (isMobile ? 8.6 : 5.6)), 0.045);
       camera.lookAt(carPoint.x, 0.34, carPoint.z);
       return;
     }
@@ -410,10 +424,22 @@ function RoadRibbon({
   );
 }
 
-function ParkingSpace({ slot, occupied, onClick }: { slot: SlotLayout; occupied: boolean; onClick: () => void }) {
+function ParkingSpace({
+  slot,
+  occupied,
+  ideaStatus,
+  showLabel,
+  onClick
+}: {
+  slot: SlotLayout;
+  occupied: boolean;
+  ideaStatus?: Idea["status"];
+  showLabel: boolean;
+  onClick: () => void;
+}) {
   const isDecorative = slot.kind !== "standard";
-  const color = isDecorative ? "#4e656d" : occupied ? "#6a7377" : "#657074";
-  const stripeColor = slot.kind === "accessible" ? "#7ec8ff" : slot.kind === "loading" ? "#f5cb65" : "#f1f4ef";
+  const color = isDecorative ? "#456c7a" : ideaStatus === "active" ? "#8b2f2a" : occupied ? "#3f7656" : "#657074";
+  const stripeColor = slot.kind === "disability" ? "#7ec8ff" : "#f1f4ef";
 
   return (
     <group position={[slot.x, 0.08, slot.z]} rotation-y={slot.rotation}>
@@ -442,21 +468,35 @@ function ParkingSpace({ slot, occupied, onClick }: { slot: SlotLayout; occupied:
         <boxGeometry args={[2.42, 0.04, 0.06]} />
         <meshStandardMaterial color={stripeColor} />
       </mesh>
-      {slot.kind === "accessible" ? (
-        <mesh position={[0, 0.11, -0.08]} rotation-x={-Math.PI / 2}>
-          <circleGeometry args={[0.24, 20]} />
-          <meshStandardMaterial color="#7ec8ff" emissive="#1f719c" emissiveIntensity={0.15} />
-        </mesh>
+      {slot.kind === "disability" ? <DisabilityParkingMark /> : null}
+      {showLabel ? (
+        <Html position={[0, 0.18, 0.56]} center className={isDecorative ? "slot-number reserved-slot" : "slot-number"}>
+          {slot.kind === "disability" ? "♿" : slot.label}
+        </Html>
       ) : null}
-      {slot.kind === "reserved" ? (
-        <mesh position={[0, 0.12, -0.1]}>
-          <boxGeometry args={[1.05, 0.04, 0.18]} />
-          <meshStandardMaterial color="#f5cb65" />
-        </mesh>
-      ) : null}
-      <Html position={[0, 0.18, 0.56]} center className={isDecorative ? "slot-number reserved-slot" : "slot-number"}>
-        {slot.kind === "accessible" ? "ADA" : slot.kind === "loading" ? "LOAD" : slot.kind === "reserved" ? "RES" : slot.label}
-      </Html>
+    </group>
+  );
+}
+
+function DisabilityParkingMark() {
+  return (
+    <group position={[0, 0.12, -0.08]}>
+      <mesh rotation-x={-Math.PI / 2}>
+        <circleGeometry args={[0.24, 24]} />
+        <meshStandardMaterial color="#7ec8ff" emissive="#1f719c" emissiveIntensity={0.12} />
+      </mesh>
+      <mesh position={[0.02, 0.035, 0.2]}>
+        <boxGeometry args={[0.1, 0.04, 0.48]} />
+        <meshStandardMaterial color="#f7fbff" />
+      </mesh>
+      <mesh position={[0.18, 0.04, -0.03]} rotation-y={0.55}>
+        <boxGeometry args={[0.08, 0.04, 0.52]} />
+        <meshStandardMaterial color="#f7fbff" />
+      </mesh>
+      <mesh position={[0.27, 0.045, -0.3]} rotation-x={-Math.PI / 2}>
+        <torusGeometry args={[0.22, 0.035, 8, 24]} />
+        <meshStandardMaterial color="#f7fbff" />
+      </mesh>
     </group>
   );
 }
