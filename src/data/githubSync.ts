@@ -141,19 +141,22 @@ async function requestGitHub<T>(path: string, init: RequestInit = {}) {
 export async function pullIdeasFromGitHub() {
   const rawUrl = new URL(`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${DATA_PATH}`);
   rawUrl.searchParams.set("t", String(Date.now()));
-  const rawResponse = await fetch(rawUrl.toString(), {
-    cache: "reload",
-    headers: {
-      "Cache-Control": "no-cache"
+
+  try {
+    const rawResponse = await fetch(rawUrl.toString(), {
+      cache: "no-store"
+    });
+
+    if (rawResponse.ok) {
+      return parseImportPayload(await rawResponse.text());
     }
-  });
 
-  if (rawResponse.ok) {
-    return parseImportPayload(await rawResponse.text());
-  }
-
-  if (rawResponse.status !== 404) {
-    throw new Error(`Could not load public ideas: ${rawResponse.status} ${rawResponse.statusText}`);
+    if (rawResponse.status !== 404) {
+      throw new Error(`Could not load public ideas: ${rawResponse.status} ${rawResponse.statusText}`);
+    }
+  } catch {
+    // Some browsers/extensions block raw.githubusercontent.com. Fall back to the
+    // GitHub Contents API so public viewers still get the shared garage.
   }
 
   const remoteFile = await requestGitHub<GitHubContentResponse>(`contents/${DATA_PATH}?ref=${BRANCH}`);
