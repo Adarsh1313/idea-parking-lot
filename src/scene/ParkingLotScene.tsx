@@ -24,6 +24,21 @@ const CAMERA_DEFAULT = new THREE.Vector3(0, 24, 22);
 const CAMERA_MOBILE = new THREE.Vector3(0, 31, 29);
 const CAMERA_LOOK_AT = new THREE.Vector3(0, 0, 0);
 const CAR_FORWARD_OFFSET = Math.PI * 0.5;
+const ARCHIVE_STALLS = [
+  [-15.2, 0.34, -8.3],
+  [-10.8, 0.34, -13.1],
+  [-5.6, 0.34, -13.3],
+  [0, 0.34, -13.35],
+  [5.6, 0.34, -13.25],
+  [10.9, 0.34, -13.1],
+  [15.1, 0.34, -8.2],
+  [15.8, 0.34, 3.3],
+  [10.2, 0.34, 13.1],
+  [4.6, 0.34, 13.2],
+  [-1.2, 0.34, 13.15],
+  [-7.1, 0.34, 12.8],
+  [-13.7, 0.34, 8.7]
+] as const;
 
 function toVector3([x, y, z]: readonly [number, number, number]) {
   return new THREE.Vector3(x, y, z);
@@ -218,14 +233,17 @@ function SceneContent({ interactive, canEdit, showSlotLabels }: { interactive: b
   const startPendingIdea = useIdeaStore((state) => state.startPendingIdea);
   const selectIdea = useIdeaStore((state) => state.selectIdea);
   const visibleIdeas = useMemo(() => ideas.filter((idea) => idea.status !== "archived"), [ideas]);
+  const archivedIdeas = useMemo(() => ideas.filter((idea) => idea.status === "archived"), [ideas]);
   const occupiedSlots = useMemo(() => new Set(visibleIdeas.map((idea) => idea.slotIndex)), [visibleIdeas]);
   const ideaStatusBySlot = useMemo(() => new Map(visibleIdeas.map((idea) => [idea.slotIndex, idea.status])), [visibleIdeas]);
+  const ideaBySlot = useMemo(() => new Map(visibleIdeas.map((idea) => [idea.slotIndex, idea])), [visibleIdeas]);
   const selectedIdea = ideas.find((idea) => idea.id === selectedIdeaId) ?? null;
   const selectedActiveOrder = Math.max(0, ideas.findIndex((idea) => idea.id === selectedIdeaId));
+  const selectedArchivedOrder = Math.max(0, archivedIdeas.findIndex((idea) => idea.id === selectedIdeaId));
 
   return (
     <>
-      <CameraRig selectedIdea={selectedIdea} activeOrder={selectedActiveOrder} />
+      <CameraRig selectedIdea={selectedIdea} activeOrder={selectedActiveOrder} archivedOrder={selectedArchivedOrder} />
       <LotBase />
       <RoadLoop />
       <Barrier open={Boolean(pendingIdea)} />
@@ -237,9 +255,13 @@ function SceneContent({ interactive, canEdit, showSlotLabels }: { interactive: b
           occupied={occupiedSlots.has(slot.index)}
           ideaStatus={ideaStatusBySlot.get(slot.index)}
           showLabel={showSlotLabels && !pendingIdea}
-          onClick={() => {
-            if (interactive && canEdit) {
-              startPendingIdea(slot.index);
+          onClickEmpty={() => interactive && canEdit && startPendingIdea(slot.index)}
+          onClickOccupied={() => {
+            if (interactive) {
+              const idea = ideaBySlot.get(slot.index);
+              if (idea) {
+                selectIdea(idea.id);
+              }
             }
           }}
         />
@@ -260,11 +282,24 @@ function SceneContent({ interactive, canEdit, showSlotLabels }: { interactive: b
           }}
         />
       ))}
+      {archivedIdeas.map((idea, archivedOrder) => (
+        <ArchivedIdeaCar
+          key={idea.id}
+          idea={idea}
+          archivedOrder={archivedOrder}
+          selected={idea.id === selectedIdeaId}
+          onClick={() => {
+            if (interactive) {
+              selectIdea(idea.id);
+            }
+          }}
+        />
+      ))}
     </>
   );
 }
 
-function CameraRig({ selectedIdea, activeOrder }: { selectedIdea: Idea | null; activeOrder: number }) {
+function CameraRig({ selectedIdea, activeOrder, archivedOrder }: { selectedIdea: Idea | null; activeOrder: number; archivedOrder: number }) {
   const { camera, size } = useThree();
   const activeCurve = useMemo(() => createCurve(ACTIVE_ROUTE, true), []);
   const isMobile = size.width < 760;
@@ -281,6 +316,14 @@ function CameraRig({ selectedIdea, activeOrder }: { selectedIdea: Idea | null; a
       return {
         position: new THREE.Vector3(carPoint.x + (isMobile ? 8.4 : 5.4), isMobile ? 10.2 : 7.2, carPoint.z + (isMobile ? 8.6 : 5.6)),
         lookAt: new THREE.Vector3(carPoint.x, 0.34, carPoint.z)
+      };
+    }
+
+    if (selectedIdea.status === "archived") {
+      const [x, y, z] = ARCHIVE_STALLS[archivedOrder % ARCHIVE_STALLS.length];
+      return {
+        position: new THREE.Vector3(x + (isMobile ? 6.9 : 4.6), isMobile ? 7.8 : 5.8, z + (isMobile ? 5.8 : 4.2)),
+        lookAt: new THREE.Vector3(x, y + 0.22, z)
       };
     }
 
@@ -429,13 +472,15 @@ function ParkingSpace({
   occupied,
   ideaStatus,
   showLabel,
-  onClick
+  onClickEmpty,
+  onClickOccupied
 }: {
   slot: SlotLayout;
   occupied: boolean;
   ideaStatus?: Idea["status"];
   showLabel: boolean;
-  onClick: () => void;
+  onClickEmpty: () => void;
+  onClickOccupied: () => void;
 }) {
   const isDecorative = slot.kind !== "standard";
   const color = isDecorative ? "#456c7a" : ideaStatus === "active" ? "#8b2f2a" : occupied ? "#7a3630" : "#657074";
@@ -449,9 +494,16 @@ function ParkingSpace({
         receiveShadow
         onPointerDown={(event) => {
           event.stopPropagation();
-          if (!occupied && !isDecorative) {
-            onClick();
+          if (isDecorative) {
+            return;
           }
+
+          if (occupied) {
+            onClickOccupied();
+            return;
+          }
+
+          onClickEmpty();
         }}
       >
         <boxGeometry args={[2.5, 0.08, 1.56]} />
@@ -722,6 +774,52 @@ function IdeaCar({
   );
 }
 
+function ArchivedIdeaCar({
+  idea,
+  archivedOrder,
+  selected,
+  onClick
+}: {
+  idea: Idea;
+  archivedOrder: number;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const spring = useSpring({
+    scale: selected ? 1.1 : 1,
+    config: { tension: 120, friction: 18 }
+  });
+  const [x, y, z] = ARCHIVE_STALLS[archivedOrder % ARCHIVE_STALLS.length];
+  const archiveRotation = archivedOrder % 2 === 0 ? -0.48 : 0.42;
+
+  return (
+    <a.group
+      position={[x, y, z]}
+      scale={spring.scale}
+      rotation-y={archiveRotation}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
+      onPointerEnter={(event) => {
+        event.stopPropagation();
+        setHovered(true);
+      }}
+      onPointerLeave={() => setHovered(false)}
+    >
+      <ArchiveHazardPad />
+      <BrokenDownCar color={idea.carColor} />
+      {selected || hovered ? (
+        <Html position={[0, 1.28, 0]} center className="selected-bubble archived-bubble">
+          <span>{idea.ideaId}</span>
+          {idea.title}
+        </Html>
+      ) : null}
+    </a.group>
+  );
+}
+
 function LowPolyCar({ color, rotation = 0 }: { color: string; rotation?: number }) {
   return (
     <group rotation-y={rotation}>
@@ -760,6 +858,55 @@ function LowPolyCar({ color, rotation = 0 }: { color: string; rotation?: number 
       <mesh position={[-0.71, 0.22, 0.2]}>
         <boxGeometry args={[0.035, 0.08, 0.15]} />
         <meshStandardMaterial color="#f5d778" emissive="#c69228" emissiveIntensity={0.3} />
+      </mesh>
+    </group>
+  );
+}
+
+function BrokenDownCar({ color }: { color: string }) {
+  return (
+    <group rotation-z={0.04}>
+      <mesh receiveShadow position={[0, 0.025, 0]} rotation-x={-Math.PI / 2}>
+        <circleGeometry args={[0.78, 24]} />
+        <meshBasicMaterial color="#1a1d1f" transparent opacity={0.28} depthWrite={false} />
+      </mesh>
+      <group rotation-y={0.18}>
+        <LowPolyCar color={color} />
+      </group>
+      <mesh castShadow position={[0.5, 0.1, 0.46]} rotation-x={Math.PI * 0.38} rotation-z={0.18}>
+        <cylinderGeometry args={[0.16, 0.16, 0.14, 16]} />
+        <meshStandardMaterial color="#1e2427" roughness={0.6} />
+      </mesh>
+      <mesh castShadow position={[-0.1, 0.73, -0.02]} rotation-z={0.44}>
+        <boxGeometry args={[0.46, 0.06, 0.04]} />
+        <meshStandardMaterial color="#d5dce0" roughness={0.34} />
+      </mesh>
+      <mesh position={[-0.34, 1.02, -0.08]}>
+        <sphereGeometry args={[0.12, 10, 8]} />
+        <meshStandardMaterial color="#595a60" transparent opacity={0.56} emissive="#2e2f34" emissiveIntensity={0.18} />
+      </mesh>
+      <mesh position={[-0.22, 1.18, -0.02]}>
+        <sphereGeometry args={[0.18, 10, 8]} />
+        <meshStandardMaterial color="#6c7075" transparent opacity={0.34} emissive="#2c2f33" emissiveIntensity={0.14} />
+      </mesh>
+    </group>
+  );
+}
+
+function ArchiveHazardPad() {
+  return (
+    <group position={[0, 0.02, 0]} rotation-x={-Math.PI / 2}>
+      <mesh>
+        <circleGeometry args={[1.1, 28]} />
+        <meshStandardMaterial color="#70231f" roughness={0.9} />
+      </mesh>
+      <mesh position={[0, 0.01, 0]}>
+        <ringGeometry args={[0.72, 0.82, 28]} />
+        <meshStandardMaterial color="#c94539" emissive="#7a231d" emissiveIntensity={0.18} />
+      </mesh>
+      <mesh position={[0, 0.015, 0]}>
+        <ringGeometry args={[0.94, 1.02, 28]} />
+        <meshStandardMaterial color="#d85f4d" emissive="#74231c" emissiveIntensity={0.1} />
       </mesh>
     </group>
   );

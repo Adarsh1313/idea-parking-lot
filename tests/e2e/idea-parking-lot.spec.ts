@@ -40,6 +40,18 @@ async function startIdeaInSlot(page: import("@playwright/test").Page, slotLabel:
     .evaluate((button) => (button as HTMLButtonElement).click());
 }
 
+async function openIdeaInSlot(page: import("@playwright/test").Page, slotLabel: string) {
+  await page
+    .getByRole("button", { name: `Open idea in ${slotLabel}`, exact: true })
+    .evaluate((button) => (button as HTMLButtonElement).click());
+}
+
+async function openArchivedIdea(page: import("@playwright/test").Page, ideaId: string) {
+  await page
+    .getByRole("button", { name: `Open archived idea ${ideaId}`, exact: true })
+    .evaluate((button) => (button as HTMLButtonElement).click());
+}
+
 test("creates, inspects, activates, and edits an idea", async ({ page }) => {
   await page.goto("/");
 
@@ -69,6 +81,28 @@ test("creates, inspects, activates, and edits an idea", async ({ page }) => {
   await page.getByLabel("Title").fill("A tiny launch tracker v2");
   await page.getByRole("button", { name: "Save changes" }).click({ force: true });
   await expect(page.getByRole("complementary", { name: "Selected idea" })).toContainText("v2");
+  await page.getByRole("button", { name: "Close idea details" }).click();
+
+  await openIdeaInSlot(page, "P-03");
+  await expect(page.getByRole("complementary", { name: "Selected idea" })).toContainText("IDEA-LAUNCH");
+});
+
+test("archived ideas stay visible as selectable broken-down cars", async ({ page }) => {
+  await page.goto("/");
+
+  await unlockOwnerMode(page);
+  await startIdeaInSlot(page, "P-03");
+  await page.getByLabel("Idea ID").fill("IDEA-ARCHIVE");
+  await page.getByLabel("Title").fill("Archived roadside experiment");
+  await page.getByRole("button", { name: "Approve parking" }).click({ force: true });
+
+  await page.getByRole("button", { name: "Archive" }).click({ force: true });
+  await expect(page.getByText("1 archived")).toBeVisible();
+  await page.getByRole("button", { name: "Close idea details" }).click();
+
+  await openArchivedIdea(page, "IDEA-ARCHIVE");
+  await expect(page.getByRole("complementary", { name: "Selected idea" })).toContainText("Archived roadside experiment");
+  await expect(page.getByRole("complementary", { name: "Selected idea" })).toContainText("Archived");
 });
 
 test("canceling a pending idea leaves the lot empty", async ({ page }) => {

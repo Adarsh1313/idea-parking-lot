@@ -203,12 +203,17 @@ export function App() {
     () => ideas.find((idea) => idea.id === selectedIdeaId) ?? null,
     [ideas, selectedIdeaId]
   );
+  const visibleIdeas = useMemo(() => ideas.filter((idea) => idea.status !== "archived"), [ideas]);
+  const visibleIdeaBySlot = useMemo(
+    () => new Map(visibleIdeas.map((idea) => [idea.slotIndex, idea])),
+    [visibleIdeas]
+  );
+  const archivedIdeas = useMemo(() => ideas.filter((idea) => idea.status === "archived"), [ideas]);
   const editingIdea = useMemo(
     () => ideas.find((idea) => idea.id === editingIdeaId) ?? null,
     [editingIdeaId, ideas]
   );
   const modalOpen = Boolean(pendingIdea || editingIdea);
-  const visibleIdeas = ideas.filter((idea) => idea.status !== "archived");
   const activeCount = ideas.filter((idea) => idea.status === "active").length;
   const archivedCount = ideas.filter((idea) => idea.status === "archived").length;
   const parkableSlotCount = PARKING_SLOTS.filter((slot) => slot.kind === "standard").length;
@@ -432,20 +437,32 @@ export function App() {
 
       <section className="visually-hidden" aria-label="Accessible parking spaces">
         {PARKING_SLOTS.map((slot) => {
-          const occupied = visibleIdeas.some((idea) => idea.slotIndex === slot.index);
+          const occupyingIdea = visibleIdeaBySlot.get(slot.index);
+          const occupied = Boolean(occupyingIdea);
           const unavailable = occupied || slot.kind !== "standard";
 
           return (
-            <button
-              key={slot.index}
-              type="button"
-              disabled={unavailable || !ownerModeEnabled}
-              onClick={() => startPendingIdea(slot.index)}
-            >
-              {slot.kind === "standard" ? `Start idea in ${slot.label}` : `${slot.label} is a disability parking space`}
-            </button>
+            <div key={slot.index}>
+              <button
+                type="button"
+                disabled={unavailable || !ownerModeEnabled}
+                onClick={() => startPendingIdea(slot.index)}
+              >
+                {slot.kind === "standard" ? `Start idea in ${slot.label}` : `${slot.label} is a disability parking space`}
+              </button>
+              {occupyingIdea ? (
+                <button type="button" onClick={() => selectIdea(occupyingIdea.id)}>
+                  {`Open idea in ${slot.label}`}
+                </button>
+              ) : null}
+            </div>
           );
         })}
+        {archivedIdeas.map((idea) => (
+          <button key={idea.id} type="button" onClick={() => selectIdea(idea.id)}>
+            {`Open archived idea ${idea.ideaId}`}
+          </button>
+        ))}
       </section>
 
       {!isAmbientMode && ownerModeEnabled && pendingIdea ? (
