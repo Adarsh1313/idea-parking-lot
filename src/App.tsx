@@ -27,6 +27,7 @@ import {
   pushIdeasToGitHub,
   storeOwnerSession,
   storeOwnerEmail,
+  storeGitHubToken,
   verifyOwnerCredentials
 } from "./data/githubSync";
 
@@ -67,6 +68,8 @@ export function App() {
   );
   const [authEmail, setAuthEmail] = useState(getStoredOwnerEmail);
   const [authPassword, setAuthPassword] = useState("");
+  const [syncKeyInput, setSyncKeyInput] = useState("");
+  const [showPublishSetup, setShowPublishSetup] = useState(false);
   const [syncStatus, setSyncStatus] = useState("Loading shared GitHub database...");
   const [remoteLoaded, setRemoteLoaded] = useState(false);
   const lastSyncedPayloadRef = useRef<string | null>(null);
@@ -92,13 +95,13 @@ export function App() {
     const remotePayload = await pullIdeasFromGitHub();
 
     if (!remotePayload) {
-      setSyncStatus(ownerModeEnabled ? "Owner mode ready. No GitHub database yet." : "No shared ideas published yet.");
+      setSyncStatus(ownerModeEnabled ? "Owner mode ready. Public garage has not been published yet." : "No shared ideas have been published yet.");
       return;
     }
 
     await importIdeas(JSON.stringify(remotePayload));
     lastSyncedPayloadRef.current = JSON.stringify(remotePayload);
-    setSyncStatus(ownerModeEnabled ? "Owner mode ready" : `${statusPrefix} ${remotePayload.ideas.length} shared ideas`);
+    setSyncStatus(ownerModeEnabled ? `Owner mode ready. Public garage shows ${remotePayload.ideas.length} shared ideas.` : `${statusPrefix} ${remotePayload.ideas.length} shared ideas`);
   }
 
   useEffect(() => {
@@ -152,7 +155,7 @@ export function App() {
     }
 
     if (!hasGitHubSyncToken()) {
-      setSyncStatus("Owner mode ready on this device.");
+      setSyncStatus("Owner mode ready on this device. Public viewers only see ideas that have already been published.");
       return;
     }
 
@@ -168,7 +171,7 @@ export function App() {
       void pushIdeasToGitHub(payload)
         .then(() => {
           lastSyncedPayloadRef.current = serializedPayload;
-          setSyncStatus("Saved to GitHub");
+          setSyncStatus("Saved to GitHub. Public viewers can see the latest garage.");
         })
         .catch((caughtError) => {
           setSyncStatus(caughtError instanceof Error ? caughtError.message : "Could not save to GitHub.");
@@ -282,7 +285,20 @@ export function App() {
     setRemoteLoaded(false);
     setOwnerModeEnabled(true);
     setViewerIntroStep("hidden");
+    setShowPublishSetup(!hasGitHubSyncToken());
     setSyncStatus(hasGitHubSyncToken() ? "Owner mode unlocked for 30 days. Loading shared database..." : "Owner mode unlocked for 30 days.");
+  }
+
+  function handleSavePublishKey() {
+    if (!syncKeyInput.trim()) {
+      setSyncStatus("Enter the GitHub publish key to update the public garage from this browser.");
+      return;
+    }
+
+    storeGitHubToken(syncKeyInput);
+    setSyncKeyInput("");
+    setShowPublishSetup(false);
+    setSyncStatus("Public sync enabled on this browser.");
   }
 
   function handleOwnerButton() {
@@ -381,6 +397,11 @@ export function App() {
           <PictureInPicture2 size={18} />
           Ambient Lot
         </button>
+        {ownerModeEnabled && !hasGitHubSyncToken() ? (
+          <button type="button" onClick={() => setShowPublishSetup(true)} disabled={!loaded}>
+            Enable Public Sync
+          </button>
+        ) : null}
         <span className="sync-status">{syncStatus}</span>
       </section> : null}
 
@@ -449,6 +470,40 @@ export function App() {
               </div>
             </section>
           ) : null}
+        </section>
+      ) : null}
+
+      {!isAmbientMode && showPublishSetup ? (
+        <section className="intro-overlay" aria-label="Public sync setup">
+          <section className="intro-card" aria-label="Public sync setup card">
+            <button type="button" className="icon-button intro-close" aria-label="Close public sync setup" onClick={() => setShowPublishSetup(false)}>
+              <X size={18} />
+            </button>
+            <p className="eyebrow">Owner Setup</p>
+            <h2>Enable the public garage.</h2>
+            <p>
+              This browser can edit locally already. Add your GitHub publish key once here if you want everyone else to see the latest parked and active ideas.
+            </p>
+            <div className="owner-login-form">
+              <label>
+                GitHub publish key
+                <input
+                  value={syncKeyInput}
+                  type="password"
+                  onChange={(event) => setSyncKeyInput(event.target.value)}
+                  placeholder="Fine-grained GitHub token"
+                />
+              </label>
+            </div>
+            <div className="intro-actions">
+              <button type="button" className="primary-button" onClick={handleSavePublishKey}>
+                Save publish key
+              </button>
+              <button type="button" className="secondary-button" onClick={() => setShowPublishSetup(false)}>
+                Later
+              </button>
+            </div>
+          </section>
         </section>
       ) : null}
 

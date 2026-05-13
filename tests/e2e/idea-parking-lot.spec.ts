@@ -37,6 +37,10 @@ async function unlockOwnerMode(page: import("@playwright/test").Page) {
   await page.getByLabel("Owner email").fill("adarshbharathwaj13@gmail.com");
   await page.getByLabel("Owner password").fill("bAdi@@200213");
   await page.getByRole("button", { name: "Unlock editing" }).click();
+  const laterButton = page.getByRole("button", { name: "Later" });
+  if (await laterButton.isVisible().catch(() => false)) {
+    await laterButton.click();
+  }
 }
 
 async function startIdeaInSlot(page: import("@playwright/test").Page, slotLabel: string) {
@@ -46,15 +50,29 @@ async function startIdeaInSlot(page: import("@playwright/test").Page, slotLabel:
 }
 
 async function openIdeaInSlot(page: import("@playwright/test").Page, slotLabel: string) {
-  await page
-    .getByRole("button", { name: `Open idea in ${slotLabel}`, exact: true })
-    .evaluate((button) => (button as HTMLButtonElement).click());
+  await page.evaluate((label) => {
+    const targetLabel = `Open idea in ${label}`;
+    const button = Array.from(document.querySelectorAll("button")).find((candidate) => candidate.textContent?.trim() === targetLabel);
+
+    if (!(button instanceof HTMLButtonElement)) {
+      throw new Error(`Could not find ${targetLabel}`);
+    }
+
+    button.click();
+  }, slotLabel);
 }
 
 async function openArchivedIdea(page: import("@playwright/test").Page, ideaId: string) {
-  await page
-    .getByRole("button", { name: `Open archived idea ${ideaId}`, exact: true })
-    .evaluate((button) => (button as HTMLButtonElement).click());
+  await page.evaluate((label) => {
+    const targetLabel = `Open archived idea ${label}`;
+    const button = Array.from(document.querySelectorAll("button")).find((candidate) => candidate.textContent?.trim() === targetLabel);
+
+    if (!(button instanceof HTMLButtonElement)) {
+      throw new Error(`Could not find ${targetLabel}`);
+    }
+
+    button.click();
+  }, ideaId);
 }
 
 test("creates, inspects, activates, and edits an idea", async ({ page }) => {
