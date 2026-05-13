@@ -7,10 +7,18 @@ const BRANCH = "main";
 const DATA_PATH = "data/ideas.json";
 const TOKEN_KEY = "idea-parking-lot.github-token";
 const OWNER_EMAIL_KEY = "idea-parking-lot.owner-email";
+const OWNER_SESSION_KEY = "idea-parking-lot.owner-session";
+const OWNER_SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
+const OWNER_LOGIN_EMAIL = "adarshbharathwaj13@gmail.com";
+const OWNER_PASSWORD_HASH = "e835b9b502acc0b340b4a22d7579dee761faffacea127da274e03362b0f265bc";
 
 type GitHubContentResponse = {
   content: string;
   sha: string;
+};
+
+type OwnerSessionRecord = {
+  expiresAt: number;
 };
 
 export function getStoredGitHubToken() {
@@ -31,11 +39,62 @@ export function storeOwnerEmail(email: string) {
 
 export function clearStoredGitHubToken() {
   localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(OWNER_EMAIL_KEY);
 }
 
 export function hasGitHubSyncToken() {
   return Boolean(getStoredGitHubToken());
+}
+
+export function clearStoredOwnerEmail() {
+  localStorage.removeItem(OWNER_EMAIL_KEY);
+}
+
+export function storeOwnerSession() {
+  const session: OwnerSessionRecord = {
+    expiresAt: Date.now() + OWNER_SESSION_DURATION_MS
+  };
+
+  localStorage.setItem(OWNER_SESSION_KEY, JSON.stringify(session));
+}
+
+export function clearOwnerSession() {
+  localStorage.removeItem(OWNER_SESSION_KEY);
+}
+
+export function hasOwnerSession() {
+  const rawSession = localStorage.getItem(OWNER_SESSION_KEY);
+
+  if (!rawSession) {
+    return false;
+  }
+
+  try {
+    const parsedSession = JSON.parse(rawSession) as OwnerSessionRecord;
+
+    if (typeof parsedSession.expiresAt !== "number" || parsedSession.expiresAt <= Date.now()) {
+      localStorage.removeItem(OWNER_SESSION_KEY);
+      return false;
+    }
+
+    return true;
+  } catch {
+    localStorage.removeItem(OWNER_SESSION_KEY);
+    return false;
+  }
+}
+
+async function sha256Hex(value: string) {
+  const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  const bytes = Array.from(new Uint8Array(hashBuffer));
+
+  return bytes.map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export async function verifyOwnerCredentials(email: string, password: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedPasswordHash = await sha256Hex(password);
+
+  return normalizedEmail === OWNER_LOGIN_EMAIL && normalizedPasswordHash === OWNER_PASSWORD_HASH;
 }
 
 function encodeUtf8Base64(value: string) {

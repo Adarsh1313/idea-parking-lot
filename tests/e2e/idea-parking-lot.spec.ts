@@ -29,8 +29,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function unlockOwnerMode(page: import("@playwright/test").Page) {
-  await page.getByLabel("Owner email").fill("owner@example.com");
-  await page.getByLabel("Owner password / GitHub token").fill("dev-token");
+  await page.getByLabel("Owner email").fill("adarshbharathwaj13@gmail.com");
+  await page.getByLabel("Owner password").fill("bAdi@@200213");
   await page.getByRole("button", { name: "Unlock editing" }).click();
 }
 

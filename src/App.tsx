@@ -19,13 +19,16 @@ import { IdeaModal } from "./ui/IdeaModal";
 import { IdeaInspector } from "./ui/IdeaInspector";
 import { PARKING_SLOTS } from "./scene/layout";
 import {
-  clearStoredGitHubToken,
+  clearOwnerSession,
   getStoredOwnerEmail,
+  hasOwnerSession,
   hasGitHubSyncToken,
   pullIdeasFromGitHub,
   pushIdeasToGitHub,
+  storeOwnerSession,
   storeOwnerEmail,
-  storeGitHubToken
+  storeGitHubToken,
+  verifyOwnerCredentials
 } from "./data/githubSync";
 
 const GITHUB_PAGES_URL = "https://adarsh1313.github.io/idea-parking-lot/";
@@ -59,10 +62,11 @@ export function App() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isAmbientMode = new URLSearchParams(window.location.search).get("ambient") === "1";
   const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
-  const [ownerModeEnabled, setOwnerModeEnabled] = useState(hasGitHubSyncToken);
-  const [showViewerIntro, setShowViewerIntro] = useState(() => !hasGitHubSyncToken() && !isAmbientMode);
+  const [ownerModeEnabled, setOwnerModeEnabled] = useState(hasOwnerSession);
+  const [showViewerIntro, setShowViewerIntro] = useState(() => !hasOwnerSession() && !isAmbientMode);
   const [authEmail, setAuthEmail] = useState(getStoredOwnerEmail);
-  const [authSecret, setAuthSecret] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [syncKeyInput, setSyncKeyInput] = useState("");
   const [syncStatus, setSyncStatus] = useState("Loading shared GitHub database...");
   const [remoteLoaded, setRemoteLoaded] = useState(false);
   const lastSyncedPayloadRef = useRef<string | null>(null);
@@ -144,6 +148,11 @@ export function App() {
 
   useEffect(() => {
     if (!loaded || !ownerModeEnabled || !remoteLoaded) {
+      return;
+    }
+
+    if (!hasGitHubSyncToken()) {
+      setSyncStatus("Owner mode ready on this device. Add the GitHub sync key here once if you want edits to publish.");
       return;
     }
 
@@ -242,7 +251,7 @@ export function App() {
 
   async function handleGitHubSyncToggle() {
     if (ownerModeEnabled) {
-      clearStoredGitHubToken();
+      clearOwnerSession();
       setOwnerModeEnabled(false);
       setShowViewerIntro(true);
       setRemoteLoaded(true);
@@ -250,18 +259,30 @@ export function App() {
       return;
     }
 
-    if (!authEmail.trim() || !authSecret.trim()) {
-      setSyncStatus("Enter owner email and GitHub token to unlock editing.");
+    if (!authEmail.trim() || !authPassword.trim()) {
+      setSyncStatus("Enter the owner email and password to unlock editing for 30 days.");
+      return;
+    }
+
+    const validOwner = await verifyOwnerCredentials(authEmail, authPassword);
+
+    if (!validOwner) {
+      setSyncStatus("That owner login did not match.");
       return;
     }
 
     storeOwnerEmail(authEmail);
-    storeGitHubToken(authSecret);
-    setAuthSecret("");
+    if (syncKeyInput.trim()) {
+      storeGitHubToken(syncKeyInput);
+    }
+
+    storeOwnerSession();
+    setAuthPassword("");
+    setSyncKeyInput("");
     setRemoteLoaded(false);
     setOwnerModeEnabled(true);
     setShowViewerIntro(false);
-    setSyncStatus("Owner mode unlocked. Loading shared database...");
+    setSyncStatus(hasGitHubSyncToken() ? "Owner mode unlocked for 30 days. Loading shared database..." : "Owner mode unlocked for 30 days.");
   }
 
   function handleOwnerButton() {
@@ -271,7 +292,7 @@ export function App() {
     }
 
     setShowViewerIntro(true);
-    setSyncStatus("Enter owner email and GitHub token to unlock editing.");
+    setSyncStatus("Enter the owner email and password to unlock editing for 30 days.");
   }
 
   function openAmbientWindow() {
@@ -377,15 +398,25 @@ export function App() {
               <input value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="you@example.com" />
             </label>
             <label>
-              Owner password / GitHub token
+              Owner password
               <input
-                value={authSecret}
+                value={authPassword}
                 type="password"
-                onChange={(event) => setAuthSecret(event.target.value)}
-                placeholder="Fine-grained GitHub token"
+                onChange={(event) => setAuthPassword(event.target.value)}
+                placeholder="Password"
+              />
+            </label>
+            <label>
+              GitHub sync key
+              <input
+                value={syncKeyInput}
+                type="password"
+                onChange={(event) => setSyncKeyInput(event.target.value)}
+                placeholder={hasGitHubSyncToken() ? "Already saved on this device" : "Optional on a new device"}
               />
             </label>
           </div>
+          <p className="viewer-note">Owner sessions stay unlocked on this browser for 30 days.</p>
           <div className="intro-actions">
             <button type="button" className="primary-button" onClick={() => void handleGitHubSyncToggle()}>
               <LockKeyhole size={17} />
