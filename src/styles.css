@@ -124,6 +124,11 @@ button {
   pointer-events: auto;
 }
 
+.hud-stats {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .hud-stats span,
 .bottom-toolbar button,
 .sync-status {
@@ -152,8 +157,10 @@ button {
 .bottom-toolbar {
   position: absolute;
   left: max(18px, env(safe-area-inset-left));
+  right: max(72px, env(safe-area-inset-right));
   bottom: max(18px, env(safe-area-inset-bottom));
   z-index: 6;
+  flex-wrap: wrap;
 }
 
 .clear-selection {
@@ -171,36 +178,45 @@ button {
   backdrop-filter: blur(16px);
 }
 
-.viewer-intro {
+.intro-overlay {
   position: absolute;
-  top: max(120px, calc(env(safe-area-inset-top) + 92px));
-  left: max(18px, env(safe-area-inset-left));
+  inset: 0;
   z-index: 9;
+  display: grid;
+  place-items: center;
+  padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgb(11 15 16 / 30%), rgb(11 15 16 / 14%));
   pointer-events: auto;
-  width: min(410px, calc(100vw - 36px));
-  padding: 18px;
-  border: 1px solid rgb(255 255 255 / 16%);
-  border-radius: 10px;
-  background: rgb(29 39 42 / 90%);
-  box-shadow: 0 28px 70px rgb(0 0 0 / 28%);
-  backdrop-filter: blur(18px);
 }
 
-.viewer-intro h2 {
+.intro-card {
+  position: relative;
+  width: min(480px, calc(100vw - 36px));
+  max-height: min(76svh, 720px);
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 20px;
+  background: rgb(29 39 42 / 92%);
+  box-shadow: 0 34px 90px rgb(0 0 0 / 34%);
+  backdrop-filter: blur(22px);
+}
+
+.intro-card h2 {
   margin: 0;
-  font-size: 1.65rem;
+  font-size: 1.85rem;
   line-height: 1.05;
 }
 
-.viewer-intro p {
+.intro-card p {
   color: #e5eadc;
   line-height: 1.45;
 }
 
 .intro-close {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 16px;
+  right: 16px;
 }
 
 .owner-login-form {
@@ -236,7 +252,7 @@ button {
 }
 
 .viewer-note {
-  margin: 18px 0 0;
+  margin: 14px 0 0;
   color: #c9d0c6;
   font-size: 0.84rem;
   font-weight: 700;
@@ -590,47 +606,83 @@ div:hover > .slot-tooltip {
 
 @media (max-width: 760px) {
   .top-hud {
-    flex-direction: column;
-    gap: 12px;
+    gap: 10px;
   }
 
   .top-hud h1 {
-    max-width: 310px;
-    font-size: 1.75rem;
+    max-width: 270px;
+    font-size: 1.45rem;
   }
 
   .hud-stats {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    gap: 8px;
+  }
+
+  .hud-stats span {
+    min-width: 0;
+    justify-content: center;
+    padding: 0 12px;
+    font-size: 0.94rem;
   }
 
   .idea-inspector {
     top: auto;
     right: 12px;
-    bottom: 74px;
+    bottom: 94px;
     left: 12px;
     width: auto;
-    max-height: 42svh;
+    max-height: 40svh;
   }
 
   .bottom-toolbar {
-    right: auto;
-    max-width: calc(100vw - 84px);
-    overflow-x: auto;
-  }
-
-  .viewer-intro {
-    top: auto;
-    right: 12px;
-    bottom: 74px;
     left: 12px;
-    width: auto;
-    max-height: 55svh;
-    overflow: auto;
+    right: 70px;
+    bottom: 12px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .bottom-toolbar button,
   .sync-status {
-    min-height: 46px;
+    min-height: 44px;
+    min-width: 0;
+    justify-content: center;
+    font-size: 0.92rem;
+  }
+
+  .sync-status {
+    grid-column: 1 / -1;
+    max-width: none;
+    justify-content: flex-start;
+  }
+
+  .intro-overlay {
+    padding: 18px 12px 96px;
+  }
+
+  .intro-card {
+    width: min(100%, 420px);
+    max-height: min(72svh, 620px);
+    padding: 20px 18px 18px;
+  }
+
+  .intro-card h2 {
+    max-width: 240px;
+    font-size: 1.55rem;
+  }
+
+  .intro-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .intro-actions .primary-button,
+  .intro-actions .secondary-button {
+    width: 100%;
   }
 
   .clear-selection {

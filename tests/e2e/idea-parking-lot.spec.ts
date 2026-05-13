@@ -29,6 +29,11 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function unlockOwnerMode(page: import("@playwright/test").Page) {
+  const continueButton = page.getByRole("button", { name: "Continue" });
+  if (await continueButton.isVisible().catch(() => false)) {
+    await continueButton.click();
+  }
+
   await page.getByLabel("Owner email").fill("adarshbharathwaj13@gmail.com");
   await page.getByLabel("Owner password").fill("bAdi@@200213");
   await page.getByRole("button", { name: "Unlock editing" }).click();
@@ -81,7 +86,7 @@ test("creates, inspects, activates, and edits an idea", async ({ page }) => {
   await page.getByLabel("Title").fill("A tiny launch tracker v2");
   await page.getByRole("button", { name: "Save changes" }).click({ force: true });
   await expect(page.getByRole("complementary", { name: "Selected idea" })).toContainText("v2");
-  await page.getByRole("button", { name: "Close idea details" }).click();
+  await page.getByRole("button", { name: "Close idea details" }).click({ force: true });
 
   await openIdeaInSlot(page, "P-03");
   await expect(page.getByRole("complementary", { name: "Selected idea" })).toContainText("IDEA-LAUNCH");
@@ -129,6 +134,9 @@ test("viewer intro can be dismissed for read-only browsing", async ({ page }) =>
   await page.goto("/");
 
   await expect(page.getByLabel("Viewer welcome")).toBeVisible();
+  await expect(page.getByLabel("Idea lot story")).toContainText("Peek at Adarsh's idea lot.");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByRole("region", { name: "Owner login" })).toContainText("Owner sessions stay unlocked on this browser for 30 days.");
   await page.getByRole("button", { name: "View only" }).click();
   await expect(page.getByLabel("Viewer welcome")).not.toBeVisible();
   await expect(page.getByRole("complementary", { name: "Selected idea" })).not.toBeVisible();

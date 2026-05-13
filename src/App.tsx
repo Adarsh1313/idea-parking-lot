@@ -27,7 +27,6 @@ import {
   pushIdeasToGitHub,
   storeOwnerSession,
   storeOwnerEmail,
-  storeGitHubToken,
   verifyOwnerCredentials
 } from "./data/githubSync";
 
@@ -63,10 +62,11 @@ export function App() {
   const isAmbientMode = new URLSearchParams(window.location.search).get("ambient") === "1";
   const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
   const [ownerModeEnabled, setOwnerModeEnabled] = useState(hasOwnerSession);
-  const [showViewerIntro, setShowViewerIntro] = useState(() => !hasOwnerSession() && !isAmbientMode);
+  const [viewerIntroStep, setViewerIntroStep] = useState<"hidden" | "story" | "auth">(() =>
+    !hasOwnerSession() && !isAmbientMode ? "story" : "hidden"
+  );
   const [authEmail, setAuthEmail] = useState(getStoredOwnerEmail);
   const [authPassword, setAuthPassword] = useState("");
-  const [syncKeyInput, setSyncKeyInput] = useState("");
   const [syncStatus, setSyncStatus] = useState("Loading shared GitHub database...");
   const [remoteLoaded, setRemoteLoaded] = useState(false);
   const lastSyncedPayloadRef = useRef<string | null>(null);
@@ -152,7 +152,7 @@ export function App() {
     }
 
     if (!hasGitHubSyncToken()) {
-      setSyncStatus("Owner mode ready on this device. Add the GitHub sync key here once if you want edits to publish.");
+      setSyncStatus("Owner mode ready on this device.");
       return;
     }
 
@@ -258,7 +258,7 @@ export function App() {
     if (ownerModeEnabled) {
       clearOwnerSession();
       setOwnerModeEnabled(false);
-      setShowViewerIntro(true);
+      setViewerIntroStep("story");
       setRemoteLoaded(true);
       setSyncStatus("Viewer mode");
       return;
@@ -277,16 +277,11 @@ export function App() {
     }
 
     storeOwnerEmail(authEmail);
-    if (syncKeyInput.trim()) {
-      storeGitHubToken(syncKeyInput);
-    }
-
     storeOwnerSession();
     setAuthPassword("");
-    setSyncKeyInput("");
     setRemoteLoaded(false);
     setOwnerModeEnabled(true);
-    setShowViewerIntro(false);
+    setViewerIntroStep("hidden");
     setSyncStatus(hasGitHubSyncToken() ? "Owner mode unlocked for 30 days. Loading shared database..." : "Owner mode unlocked for 30 days.");
   }
 
@@ -296,7 +291,7 @@ export function App() {
       return;
     }
 
-    setShowViewerIntro(true);
+    setViewerIntroStep("auth");
     setSyncStatus("Enter the owner email and password to unlock editing for 30 days.");
   }
 
@@ -328,10 +323,12 @@ export function App() {
     window.open(url.toString(), "_blank", "noopener,noreferrer");
   }
 
+  const showViewerIntro = viewerIntroStep !== "hidden";
+
   return (
     <main className={isAmbientMode ? "app-shell ambient-shell" : "app-shell"}>
       <Suspense fallback={<div className="scene-loader">Preparing the lot...</div>}>
-        <ParkingLotScene interactive={!isAmbientMode} canEdit={ownerModeEnabled} showSlotLabels={!modalOpen} />
+        <ParkingLotScene interactive={!isAmbientMode} canEdit={ownerModeEnabled} showSlotLabels={!modalOpen && !showViewerIntro} />
       </Suspense>
 
       {isAmbientMode ? (
@@ -388,50 +385,70 @@ export function App() {
       </section> : null}
 
       {!isAmbientMode && showViewerIntro ? (
-        <section className="viewer-intro" aria-label="Viewer welcome">
-          <button type="button" className="icon-button intro-close" aria-label="Close viewer intro" onClick={() => setShowViewerIntro(false)}>
-            <X size={18} />
-          </button>
-          <p className="eyebrow">Public View</p>
-          <h2>Peek at Adarsh's idea lot.</h2>
-          <p>
-            This is a shared read-only view of the projects currently parked, active, or archived. Close this card to browse the lot.
-          </p>
-          <div className="owner-login-form">
-            <label>
-              Owner email
-              <input value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="you@example.com" />
-            </label>
-            <label>
-              Owner password
-              <input
-                value={authPassword}
-                type="password"
-                onChange={(event) => setAuthPassword(event.target.value)}
-                placeholder="Password"
-              />
-            </label>
-            <label>
-              GitHub sync key
-              <input
-                value={syncKeyInput}
-                type="password"
-                onChange={(event) => setSyncKeyInput(event.target.value)}
-                placeholder={hasGitHubSyncToken() ? "Already saved on this device" : "Optional on a new device"}
-              />
-            </label>
-          </div>
-          <p className="viewer-note">Owner sessions stay unlocked on this browser for 30 days.</p>
-          <div className="intro-actions">
-            <button type="button" className="primary-button" onClick={() => void handleGitHubSyncToggle()}>
-              <LockKeyhole size={17} />
-              Unlock editing
-            </button>
-            <button type="button" className="secondary-button" onClick={() => setShowViewerIntro(false)}>
-              <Eye size={17} />
-              View only
-            </button>
-          </div>
+        <section className="intro-overlay" aria-label="Viewer welcome">
+          {viewerIntroStep === "story" ? (
+            <section className="intro-card" aria-label="Idea lot story">
+              <button type="button" className="icon-button intro-close" aria-label="Close viewer intro" onClick={() => setViewerIntroStep("hidden")}>
+                <X size={18} />
+              </button>
+              <p className="eyebrow">Public View</p>
+              <h2>Peek at Adarsh&apos;s idea lot.</h2>
+              <p>
+                This project is where I park the ideas I get for products, experiments, and tiny internet side quests so they do not disappear by the
+                next morning while I am busy shipping current work.
+              </p>
+              <p>
+                I love driving cars, so the whole metaphor came from that instinct. I keep this lot running in the background as a little reminder to
+                stay focused, avoid doomscrolling, and keep executing the projects that used to just live in my head.
+              </p>
+              <div className="intro-actions">
+                <button type="button" className="primary-button" onClick={() => setViewerIntroStep("auth")}>
+                  Continue
+                </button>
+                <button type="button" className="secondary-button" onClick={() => setViewerIntroStep("hidden")}>
+                  <Eye size={17} />
+                  View only
+                </button>
+              </div>
+            </section>
+          ) : null}
+
+          {viewerIntroStep === "auth" ? (
+            <section className="intro-card" aria-label="Owner login">
+              <button type="button" className="icon-button intro-close" aria-label="Close owner login" onClick={() => setViewerIntroStep("hidden")}>
+                <X size={18} />
+              </button>
+              <p className="eyebrow">Owner Login</p>
+              <h2>Unlock the lot.</h2>
+              <div className="owner-login-form">
+                <label>
+                  Owner email
+                  <input value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="you@example.com" />
+                </label>
+                <label>
+                  Owner password
+                  <input
+                    value={authPassword}
+                    type="password"
+                    onChange={(event) => setAuthPassword(event.target.value)}
+                    placeholder="Password"
+                  />
+                </label>
+              </div>
+              <p className="viewer-note">Owner sessions stay unlocked on this browser for 30 days.</p>
+              <p className="viewer-note">If you stumbled onto this website, click view only to see my current projects and the ones I&apos;ve parked in my head.</p>
+              <div className="intro-actions">
+                <button type="button" className="primary-button" onClick={() => void handleGitHubSyncToggle()}>
+                  <LockKeyhole size={17} />
+                  Unlock editing
+                </button>
+                <button type="button" className="secondary-button" onClick={() => setViewerIntroStep("hidden")}>
+                  <Eye size={17} />
+                  View only
+                </button>
+              </div>
+            </section>
+          ) : null}
         </section>
       ) : null}
 
