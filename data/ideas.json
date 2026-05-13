@@ -6,26 +6,26 @@
       "ideaId": "IDEA-002",
       "slotIndex": 14,
       "title": "Resurface",
-      "description": "1. List extension on Google Chrome Store\n2. Improve the resurfacing flow for X and YouTube",
+      "description": "1. Private List extension on Google Chrome Store\n2. Check backend - cold starts, setup cron jobs.\n3. Check dashboard and labels with demo account\n4. Figure out mass bookmark export\n5. Fix emails through Resend\n6. Send out test emails with waitlist + signup\n7. Draft few X posts.",
       "links": [],
       "status": "active",
       "carVariant": "low-poly-sedan",
       "carColor": "#e35f45",
       "createdAt": "2026-05-03T02:30:46.146Z",
-      "updatedAt": "2026-05-13T10:40:35.395Z"
+      "updatedAt": "2026-05-13T14:18:10.916Z"
     },
     {
       "id": "1519a583-7160-4d4e-91ec-623d0bf89005",
       "ideaId": "IDEA-003",
       "slotIndex": 20,
-      "title": "Fullview Repo Manager",
-      "description": "1. Switch dashboard from localhost to cloud\n2. Keep repo views and portfolio context easy to manage",
+      "title": "FOLIO - Repo Manager",
+      "description": "1. Switch from local Ollama to cloud model\n2. Setup Github OAuth + Google OAuth\n3. Allow users to upload local files + setup backend + cloud storage\n4. Add LinkedIn Page - post generator",
       "links": [],
       "status": "active",
       "carVariant": "low-poly-sedan",
       "carColor": "#78c6c8",
       "createdAt": "2026-05-13T06:22:33.457Z",
-      "updatedAt": "2026-05-13T10:39:39.848Z"
+      "updatedAt": "2026-05-13T14:16:38.170Z"
     }
   ]
 }

@@ -72,6 +72,7 @@ export function App() {
   const [authPassword, setAuthPassword] = useState("");
   const [syncKeyInput, setSyncKeyInput] = useState("");
   const [showPublishSetup, setShowPublishSetup] = useState(false);
+  const [publishInFlight, setPublishInFlight] = useState(false);
   const [syncStatus, setSyncStatus] = useState("Loading shared GitHub database...");
   const [remoteLoaded, setRemoteLoaded] = useState(false);
   const lastSyncedPayloadRef = useRef<string | null>(null);
@@ -323,6 +324,29 @@ export function App() {
     setSyncStatus("Public sync enabled on this browser.");
   }
 
+  async function handlePublishNow() {
+    if (!hasGitHubSyncToken()) {
+      setShowPublishSetup(true);
+      setSyncStatus("Add the GitHub publish key once before publishing local edits for viewers.");
+      return;
+    }
+
+    const payload = exportIdeas();
+    const serializedPayload = JSON.stringify(payload);
+    setPublishInFlight(true);
+    setSyncStatus("Publishing garage for viewers...");
+
+    try {
+      await pushIdeasToGitHub(payload);
+      lastSyncedPayloadRef.current = serializedPayload;
+      setSyncStatus("Published. Viewers will refresh to this garage within a few seconds.");
+    } catch (caughtError) {
+      setSyncStatus(caughtError instanceof Error ? caughtError.message : "Could not publish the garage.");
+    } finally {
+      setPublishInFlight(false);
+    }
+  }
+
   function handleOwnerButton() {
     if (ownerModeEnabled) {
       void handleGitHubSyncToggle();
@@ -428,6 +452,12 @@ export function App() {
         {ownerModeEnabled && !hasGitHubSyncToken() ? (
           <button type="button" onClick={() => setShowPublishSetup(true)} disabled={!loaded}>
             Enable Public Sync
+          </button>
+        ) : null}
+        {ownerModeEnabled ? (
+          <button type="button" onClick={() => void handlePublishNow()} disabled={!loaded || publishInFlight}>
+            <Cloud size={18} />
+            {publishInFlight ? "Publishing..." : "Publish Now"}
           </button>
         ) : null}
         <span className="sync-status">{syncStatus}</span>
