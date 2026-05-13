@@ -1,4 +1,31 @@
 {
   "schemaVersion": 1,
-  "ideas": []
+  "ideas": [
+    {
+      "id": "9a85c790-6415-4be6-bf51-89e64f50a34a",
+      "ideaId": "IDEA-002",
+      "slotIndex": 14,
+      "title": "Resurface",
+      "description": "1. List extension on Google Chrome Store\n2. Improve the resurfacing flow for X and YouTube",
+      "links": [],
+      "status": "active",
+      "carVariant": "low-poly-sedan",
+      "carColor": "#e35f45",
+      "createdAt": "2026-05-03T02:30:46.146Z",
+      "updatedAt": "2026-05-13T10:40:35.395Z"
+    },
+    {
+      "id": "1519a583-7160-4d4e-91ec-623d0bf89005",
+      "ideaId": "IDEA-003",
+      "slotIndex": 20,
+      "title": "Fullview Repo Manager",
+      "description": "1. Switch dashboard from localhost to cloud\n2. Keep repo views and portfolio context easy to manage",
+      "links": [],
+      "status": "active",
+      "carVariant": "low-poly-sedan",
+      "carColor": "#78c6c8",
+      "createdAt": "2026-05-13T06:22:33.457Z",
+      "updatedAt": "2026-05-13T10:39:39.848Z"
+    }
+  ]
 }
