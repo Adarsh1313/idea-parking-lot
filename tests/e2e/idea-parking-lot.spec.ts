@@ -47,6 +47,7 @@ test("creates, inspects, activates, and edits an idea", async ({ page }) => {
   await expect(page.getByText("0/20 parked")).toBeVisible();
   await startIdeaInSlot(page, "P-03");
   await expect(page.getByText("New idea")).toBeVisible();
+  await expect(page.locator(".slot-number")).toHaveCount(0);
 
   await page.getByLabel("Idea ID").fill("IDEA-LAUNCH");
   await page.getByLabel("Title").fill("A tiny launch tracker");

@@ -198,6 +198,7 @@ export function App() {
     () => ideas.find((idea) => idea.id === editingIdeaId) ?? null,
     [editingIdeaId, ideas]
   );
+  const modalOpen = Boolean(pendingIdea || editingIdea);
   const visibleIdeas = ideas.filter((idea) => idea.status !== "archived");
   const activeCount = ideas.filter((idea) => idea.status === "active").length;
   const archivedCount = ideas.filter((idea) => idea.status === "archived").length;
@@ -304,7 +305,7 @@ export function App() {
   return (
     <main className={isAmbientMode ? "app-shell ambient-shell" : "app-shell"}>
       <Suspense fallback={<div className="scene-loader">Preparing the lot...</div>}>
-        <ParkingLotScene interactive={!isAmbientMode} canEdit={ownerModeEnabled} />
+        <ParkingLotScene interactive={!isAmbientMode} canEdit={ownerModeEnabled} showSlotLabels={!modalOpen} />
       </Suspense>
 
       {isAmbientMode ? (
